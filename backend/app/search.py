@@ -59,10 +59,10 @@ def _warning_message(code: str, supplier: str) -> str:
     return f"{supplier} is unavailable; its results are missing."
 
 
-def _map_provider_error(exc: provider.ProviderError, request_id: str) -> ApiError:
-    """Standard error for a failed search; provider text is only logged, never returned."""
+def map_provider_error(exc: provider.ProviderError, request_id: str, action: str = "search") -> ApiError:
+    """Standard error for a failed provider call; provider text is only logged, never returned."""
     logger.warning(
-        "search failed: %s request_id=%s provider_request_id=%s", type(exc).__name__, request_id, exc.request_id
+        "%s failed: %s request_id=%s provider_request_id=%s", action, type(exc).__name__, request_id, exc.request_id
     )
     if isinstance(exc, provider.ProviderBadRequest) and exc.fields:
         return _fail(exc.fields)
@@ -70,10 +70,10 @@ def _map_provider_error(exc: provider.ProviderError, request_id: str) -> ApiErro
         headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else None
         return ApiError(429, "RATE_LIMITED", "The provider is limiting requests. Please try again shortly.", headers=headers)
     if isinstance(exc, provider.ProviderUnavailable) or isinstance(exc, provider.ProviderUnreachable):
-        return ApiError(503, "PROVIDER_UNAVAILABLE", "The search providers are unavailable. Please try again later.")
+        return ApiError(503, "PROVIDER_UNAVAILABLE", "The providers are unavailable. Please try again later.")
     if isinstance(exc, provider.ProviderTimeout):
-        return ApiError(504, "PROVIDER_TIMEOUT", "The search took too long. Please try again.")
-    return ApiError(502, "PROVIDER_ERROR", "The search could not be completed. Please try again later.")
+        return ApiError(504, "PROVIDER_TIMEOUT", f"The {action} took too long. Please try again.")
+    return ApiError(502, "PROVIDER_ERROR", f"The {action} could not be completed. Please try again later.")
 
 
 @router.post("/trips/{trip_id}/search")
@@ -110,7 +110,7 @@ def search_trip(trip_id: uuid.UUID, body: SearchIn, user: CurrentUser, session: 
     try:
         result = provider.search_offers(params)
     except provider.ProviderError as exc:
-        raise _map_provider_error(exc, request_id) from exc
+        raise map_provider_error(exc, request_id) from exc
 
     if result.partial:
         state = "partial"

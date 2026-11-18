@@ -132,3 +132,39 @@ def test_unreachable():
 def test_malformed_or_unexpected_response(transport):
     with pytest.raises(provider.ProviderMalformedResponse):
         provider.search_offers(PARAMS, transport)
+
+
+# --- get_offer ---
+
+
+def test_get_offer_returns_the_offer_and_encodes_the_id():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["path"] = request.url.raw_path.decode()
+        return httpx.Response(200, json=OFFER)
+
+    offer = provider.get_offer("a/b c", stub(handler))
+
+    assert offer.id == "o-1" and offer.price.amount == "120.00"
+    assert seen["path"].endswith("/offers/a%2Fb%20c")
+
+
+def test_get_offer_unknown_id_is_not_found():
+    with pytest.raises(provider.ProviderNotFound):
+        provider.get_offer("nope", respond(404, {"code": "NOT_FOUND"}))
+
+
+@pytest.mark.parametrize(
+    "transport, error",
+    [
+        (respond(429, {}, {"Retry-After": "3"}), provider.ProviderRateLimited),
+        (respond(503, {}), provider.ProviderUnavailable),
+        (respond(200, {"id": "x"}), provider.ProviderMalformedResponse),
+        (respond(500, {}), provider.ProviderMalformedResponse),
+    ],
+    ids=["429", "503", "wrong-shape", "500"],
+)
+def test_get_offer_failures_are_typed(transport, error):
+    with pytest.raises(error):
+        provider.get_offer("o-1", transport)

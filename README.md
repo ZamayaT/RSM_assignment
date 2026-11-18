@@ -90,6 +90,14 @@ curl -s -X POST http://localhost:4010/control/reset
 
 The backend waits at most `PROVIDER_TIMEOUT_SECONDS` (default 5, set in `.env`) for the provider.
 
+To build an itinerary, click **Add to itinerary** on a search result (organizers and editors; viewers can only look). Open **Itinerary** from the trip page to see the items in order with schedule, cost, an "Estimate" or "Expired quote" label and warnings. Use **Up**/**Down** to arrange items and **Remove** to delete one. New items are placed by start time; the saved order is what everyone sees. The **Budget** page lists the costs and compares the total with the trip budget (remaining or over budget).
+
+- **What is stored**: adding an item saves a copy of the offer as the provider returned it at that moment. If the provider's price changes later, the itinerary and budget keep the saved estimate.
+- **Warnings** (simplified rules): two items conflict when their time ranges overlap, comparing UTC instants (an end equal to the next start is fine). A stay may overlap activities and transport, but two overlapping stays conflict. Also flagged: missing schedule or price, an expired quote, an item outside the trip dates, and a destination that is not on the trip. Travel time and opening hours are not checked. "Expired" uses the backend's clock, so it can differ from the provider mock's clock if you shifted that.
+- **Budget rounding**: an item's cost is the offer's total price for the party (not multiplied by travelers). Totals are exact sums to the cent; any result with more decimals would be rounded half-up to the cent. Items without a price are left out. Until bookings exist, every cost is an estimate and the confirmed total is `0.00`.
+
+To see an edit conflict, log in as `alice` in one browser window and as `carol` in a private window. As `alice`, create a trip and share it with `carol` as editor. Open the **Itinerary** of that trip in both windows, then change it in one window (for example, remove an item) and change it in the other without reloading. The second save is refused with a dialog that says someone else saved first, shows the latest itinerary next to your change, and lets you **Re-apply** it or **Discard** it. Nothing saved is overwritten. A trip edit and an itinerary change share one version, so they can conflict with each other too.
+
 The API endpoints are listed and can be tried at http://localhost:8000/docs.
 
 ## 7. Run the tests
@@ -101,7 +109,7 @@ docker compose exec backend pytest
 docker compose exec mock_provider pytest
 ```
 
-The search tests call the real provider mock over HTTP, so the `mock_provider` service must be running; they reset the mock before and after each test, which also clears any failures you set by hand. The backend tests create and use their own database (`<POSTGRES_DB>_test`, dropped and recreated on each run), so your trips and logins are never touched. All of them should pass; they cover login, validation, trips, visibility, versioning conflicts, concurrent saves and persistence across a restart.
+The itinerary tests (including the permission and concurrency ones) also call the real mock. The search tests call the real provider mock over HTTP, so the `mock_provider` service must be running; they reset the mock before and after each test, which also clears any failures you set by hand. The backend tests create and use their own database (`<POSTGRES_DB>_test`, dropped and recreated on each run), so your trips and logins are never touched. All of them should pass; they cover login, validation, trips, visibility, versioning conflicts, concurrent saves and persistence across a restart.
 
 The provider mock stores its data in its own PostgreSQL schema (`mock_provider`) and applies its migrations automatically when its container starts. Its fixtures, demo tokens, clock, `/control` endpoints and copy-paste failure scenarios are documented in [`mock_provider/README.md`](mock_provider/README.md). On startup it also loads its fixture offers (Lisbon, Paris, Rome) if there are none.
 

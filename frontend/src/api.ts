@@ -78,6 +78,63 @@ export interface SearchResult {
   searchedAt: string;
 }
 
+export interface ItineraryWarning {
+  code: string;
+  message: string;
+}
+
+export interface ItineraryItem {
+  id: string;
+  offerId: string;
+  providerId: string;
+  category: string;
+  title: string;
+  description: string;
+  destination: string;
+  origin: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  travelers: number;
+  price: { amount: string; currency: string } | null;
+  revision: string;
+  available: boolean;
+  validUntil: string | null;
+  status: "estimate" | "expired_quote";
+  warnings: ItineraryWarning[];
+  addedAt: string;
+}
+
+export interface Itinerary {
+  version: number;
+  items: ItineraryItem[];
+}
+
+export interface BudgetLine {
+  itemId: string;
+  title: string;
+  category: string;
+  amount: string | null;
+  kind: "estimate" | "confirmed";
+  expired: boolean;
+}
+
+export interface Budget {
+  currency: string;
+  lines: BudgetLine[];
+  estimatedTotal: string;
+  confirmedTotal: string;
+  combinedTotal: string;
+  budget: string;
+  remaining: string; // negative when over budget
+  overBudget: boolean;
+}
+
+// Latest saved state returned with an itinerary version conflict.
+export interface LatestState {
+  trip: Trip;
+  itinerary: Itinerary;
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -85,6 +142,7 @@ export class ApiError extends Error {
     message: string,
     public fields: Record<string, string> = {},
     public latest?: Trip,
+    public latestState?: LatestState,
   ) {
     super(message);
   }
@@ -145,19 +203,26 @@ async function request<T>(path: string, method = "GET", body?: unknown): Promise
   if (response.status === 204) return undefined as T;
   if (response.ok) return (await response.json()) as T;
 
-  let data: { code?: string; message?: string; details?: { fields?: Record<string, string>; latest?: Trip } } = {};
+  let data: {
+    code?: string;
+    message?: string;
+    details?: { fields?: Record<string, string>; latest?: Trip | LatestState };
+  } = {};
   try {
     data = await response.json();
   } catch {
     // Non-JSON error body: fall back to the generic message below.
   }
   if (response.status === 401) unauthorizedHandler?.();
+  const latest = data.details?.latest;
+  const isState = latest !== undefined && "itinerary" in latest;
   throw new ApiError(
     response.status,
     data.code ?? "ERROR",
     data.message ?? `Request failed (${response.status}).`,
     data.details?.fields,
-    data.details?.latest,
+    isState ? undefined : (latest as Trip | undefined),
+    isState ? (latest as LatestState) : undefined,
   );
 }
 
@@ -172,6 +237,14 @@ export const api = {
     request<Trip>(`/trips/${id}`, "PUT", { ...input, version }),
   searchOptions: () => request<SearchOptions>("/search/options"),
   search: (tripId: string, input: SearchInput) => request<SearchResult>(`/trips/${tripId}/search`, "POST", input),
+  itinerary: (tripId: string) => request<Itinerary>(`/trips/${tripId}/itinerary`),
+  addToItinerary: (tripId: string, offerId: string, version: number) =>
+    request<Itinerary>(`/trips/${tripId}/itinerary`, "POST", { offerId, version }),
+  removeFromItinerary: (tripId: string, itemId: string, version: number) =>
+    request<Itinerary>(`/trips/${tripId}/itinerary/${itemId}?version=${version}`, "DELETE"),
+  reorderItinerary: (tripId: string, itemIds: string[], version: number) =>
+    request<Itinerary>(`/trips/${tripId}/itinerary/order`, "PUT", { itemIds, version }),
+  budget: (tripId: string) => request<Budget>(`/trips/${tripId}/budget`),
   searchUsers: (query: string) => request<User[]>(`/users?query=${encodeURIComponent(query)}`),
   listParticipants: (tripId: string) => request<Participant[]>(`/trips/${tripId}/participants`),
   addParticipant: (tripId: string, username: string, role: string) =>

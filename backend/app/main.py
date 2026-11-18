@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app import auth, destinations, participants, search, trips, users
+from app import auth, budget, destinations, itinerary, participants, search, trips, users
 from app.config import get_settings
 from app.db import check_database
 from app.errors import install_error_handling
@@ -34,6 +34,8 @@ app.include_router(trips.router)
 app.include_router(participants.router)
 app.include_router(users.router)
 app.include_router(search.router)
+app.include_router(itinerary.router)
+app.include_router(budget.router)
 
 
 @app.get("/health")

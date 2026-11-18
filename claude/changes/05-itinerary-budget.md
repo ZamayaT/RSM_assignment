@@ -35,27 +35,27 @@ Editors can add search results to a trip's itinerary, remove items and arrange t
 ## Tasks
 
 ### Backend: data and rules
-- [ ] 1.1 Migration and model for itinerary items (offer snapshot columns, position, added by/at, unique offer per trip); `GET /trips/{id}/itinerary` returning items in stored order with the trip `version` (any participant).
-- [ ] 1.2 Pure warning and status functions (conflicts, missing information, expired quote, outside trip dates, destination not in trip) with unit tests.
-- [ ] 1.3 Pure budget calculation with `Decimal` (estimated, confirmed, combined, remaining) and `GET /trips/{id}/budget`, with unit tests.
+- [x] 1.1 Migration and model for itinerary items (offer snapshot columns, position, added by/at, unique offer per trip); `GET /trips/{id}/itinerary` returning items in stored order with the trip `version` (any participant).
+- [x] 1.2 Pure warning and status functions (conflicts, missing information, expired quote, outside trip dates, destination not in trip) with unit tests.
+- [x] 1.3 Pure budget calculation with `Decimal` (estimated, confirmed, combined, remaining) and `GET /trips/{id}/budget`, with unit tests.
 
 ### Backend: changes with locking
-- [ ] 2.1 Provider client: `GET /offers/{id}` call with the same error mapping as the search (typed result, typed errors, `404` for an unknown offer).
-- [ ] 2.2 `POST /trips/{id}/itinerary`: edit permission, version check, snapshot from the provider offer, chronological insertion, `OFFER_UNAVAILABLE` / `ALREADY_IN_ITINERARY` / destination checks, version bump in the same transaction.
-- [ ] 2.3 `DELETE /trips/{id}/itinerary/{itemId}` and `PUT /trips/{id}/itinerary/order`: edit permission, version check, order validation, version bump.
-- [ ] 2.4 Conflict response: `409 VERSION_CONFLICT` with the latest trip and itinerary for every itinerary write.
+- [x] 2.1 Provider client: `GET /offers/{id}` call with the same error mapping as the search (typed result, typed errors, `404` for an unknown offer).
+- [x] 2.2 `POST /trips/{id}/itinerary`: edit permission, version check, snapshot from the provider offer, chronological insertion, `OFFER_UNAVAILABLE` / `ALREADY_IN_ITINERARY` / destination checks, version bump in the same transaction.
+- [x] 2.3 `DELETE /trips/{id}/itinerary/{itemId}` and `PUT /trips/{id}/itinerary/order`: edit permission, version check, order validation, version bump.
+- [x] 2.4 Conflict response: `409 VERSION_CONFLICT` with the latest trip and itinerary for every itinerary write.
 
 ### Frontend
-- [ ] 3.1 API calls, "Add to itinerary" on each search result for organizer and editor (shows the server's answer: added, already added, unavailable, conflict), hidden for viewers.
-- [ ] 3.2 Itinerary view `/trips/:id/itinerary`: items in order with schedule, destination, cost, status label and warnings, remove, up/down reordering (hidden for viewers), the simplified scheduling rules explained, loading and error states, links from the trip overview and the search page.
-- [ ] 3.3 Conflict dialog for add, remove and reorder: explanation, latest itinerary next to the refused change, Re-apply and Discard.
-- [ ] 3.4 Budget view `/trips/:id/budget`: itemized table (item, category, amount, estimate), the three totals, comparison with the budget (remaining or over), rounding note; budget summary and itinerary warning count on the trip overview.
+- [x] 3.1 API calls, "Add to itinerary" on each search result for organizer and editor (shows the server's answer: added, already added, unavailable, conflict), hidden for viewers.
+- [x] 3.2 Itinerary view `/trips/:id/itinerary`: items in order with schedule, destination, cost, status label and warnings, remove, up/down reordering (hidden for viewers), the simplified scheduling rules explained, loading and error states, links from the trip overview and the search page.
+- [x] 3.3 Conflict dialog for add, remove and reorder: explanation, latest itinerary next to the refused change, Re-apply and Discard.
+- [x] 3.4 Budget view `/trips/:id/budget`: itemized table (item, category, amount, estimate), the three totals, comparison with the budget (remaining or over), rounding note; budget summary and itinerary warning count on the trip overview.
 
 ### Tests and documentation
-- [ ] 4.1 Itinerary endpoint tests against the real mock: add (snapshot stored, chronological position), unavailable offer, duplicate, destination outside the trip, remove, reorder (valid and invalid lists), persistence of order, snapshot unchanged after the mock changes the price.
-- [ ] 4.2 Permission tests: viewer `403` on every write and can read; editor can write; non-participant `404`; no login `401`; removed participant loses access immediately.
-- [ ] 4.3 Concurrency tests: two writers with the same version (second gets `409` with the latest state, nothing lost); add and trip edit racing; two simultaneous adds; version increases by one per change.
-- [ ] 4.4 Update `README.md`: how to build and arrange an itinerary, read the budget and see a conflict (two browser windows, two users), the scheduling and rounding rules (only what is implemented).
+- [x] 4.1 Itinerary endpoint tests against the real mock: add (snapshot stored, chronological position), unavailable offer, duplicate, destination outside the trip, remove, reorder (valid and invalid lists), persistence of order, snapshot unchanged after the mock changes the price.
+- [x] 4.2 Permission tests: viewer `403` on every write and can read; editor can write; non-participant `404`; no login `401`; removed participant loses access immediately.
+- [x] 4.3 Concurrency tests: two writers with the same version (second gets `409` with the latest state, nothing lost); add and trip edit racing; two simultaneous adds; version increases by one per change.
+- [x] 4.4 Update `README.md`: how to build and arrange an itinerary, read the budget and see a conflict (two browser windows, two users), the scheduling and rounding rules (only what is implemented).
 
 ## Acceptance criteria
 - In the browser: search accommodation, add an offer, see it in the Itinerary with schedule, cost, "estimate" label and no warnings; add an overlapping activity (allowed) and a second overlapping accommodation (conflict warning); move and remove items and see the order persist after a reload.

@@ -16,12 +16,20 @@ import {
 } from "@mui/material";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
-import { api, ApiError, type Offer, type SearchInput, type SearchOptions, type SearchResult, type Trip } from "../api";
+import {
+  api,
+  ApiError,
+  type Itinerary,
+  type Offer,
+  type SearchInput,
+  type SearchOptions,
+  type SearchResult,
+  type Trip,
+} from "../api";
+import ConflictDialog, { type PendingChange } from "../ConflictDialog";
+import { stamp } from "../format";
 
 type SortKey = "price" | "start" | "supplier";
-
-// Timestamps are shown as the provider sent them (with their offset); the UI never judges expiry.
-const stamp = (iso: string) => iso.replace("T", " ").replace(/\.\d+/, "").replace(/Z$/, " UTC");
 
 function sortOffers(offers: Offer[], key: SortKey): Offer[] {
   const by: Record<SortKey, (a: Offer, b: Offer) => number> = {
@@ -51,14 +59,21 @@ export default function Search() {
   const [failure, setFailure] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [sortKey, setSortKey] = useState<SortKey>("price");
+  const [itineraryVersion, setItineraryVersion] = useState(1);
+  const [added, setAdded] = useState<Set<string>>(new Set());
+  const [notes, setNotes] = useState<Record<string, { ok: boolean; text: string }>>({});
+  const [adding, setAdding] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<{ change: PendingChange; latest: Itinerary; offerId: string } | null>(null);
+  const [reapplying, setReapplying] = useState(false);
   const lastInput = useRef<SearchInput | null>(null);
   const latestRun = useRef(0);
 
   useEffect(() => {
-    Promise.all([api.getTrip(id), api.searchOptions()])
-      .then(([t, o]) => {
+    Promise.all([api.getTrip(id), api.searchOptions(), api.itinerary(id)])
+      .then(([t, o, it]) => {
         setTrip(t);
         setOptions(o);
+        syncItinerary(it);
         setDestination(t.destinations[0] ?? "");
         setStartsOn(t.startDate);
         setEndsOn(t.endDate);
@@ -66,6 +81,41 @@ export default function Search() {
       })
       .catch((e: ApiError) => setLoadError(e.status === 404 ? "Trip not found." : e.message));
   }, [id]);
+
+  function syncItinerary(it: Itinerary) {
+    setItineraryVersion(it.version);
+    setAdded(new Set(it.items.map((i) => i.offerId)));
+  }
+
+  // Sends one add. Only the server's answer decides what the page says; nothing is assumed saved.
+  async function addOffer(offer: Offer, version: number, fromDialog = false) {
+    const change: PendingChange = {
+      description: `Add “${offer.title}” (${offer.providerId}) to the itinerary.`,
+      apply: (v) => api.addToItinerary(id, offer.id, v),
+    };
+    setAdding(offer.id);
+    setNotes((n) => ({ ...n, [offer.id]: { ok: true, text: "" } }));
+    try {
+      const updated = await change.apply(version);
+      syncItinerary(updated);
+      setConflict(null);
+      setNotes((n) => ({ ...n, [offer.id]: { ok: true, text: "Added to the itinerary." } }));
+    } catch (e) {
+      const error = e as ApiError;
+      if (error.status === 409 && error.latestState) {
+        syncItinerary(error.latestState.itinerary);
+        setConflict({ change, latest: error.latestState.itinerary, offerId: offer.id });
+        return;
+      }
+      if (error.code === "ALREADY_IN_ITINERARY") setAdded((a) => new Set(a).add(offer.id));
+      setConflict(null);
+      setNotes((n) => ({ ...n, [offer.id]: { ok: false, text: error.fields.offerId ?? error.message } }));
+      if (fromDialog) api.itinerary(id).then(syncItinerary).catch(() => undefined);
+    } finally {
+      setAdding(null);
+      setReapplying(false);
+    }
+  }
 
   async function run(input: SearchInput) {
     const thisRun = ++latestRun.current;
@@ -111,6 +161,7 @@ export default function Search() {
 
   const err = (field: string) => ({ error: field in fieldErrors, helperText: fieldErrors[field] });
   const sorted = result ? sortOffers(result.offers, sortKey) : [];
+  const canEdit = trip.role === "organizer" || trip.role === "editor";
 
   return (
     <Stack spacing={2}>
@@ -147,6 +198,7 @@ export default function Search() {
           </Stack>
           <Stack direction="row" spacing={2}>
             <Button type="submit" variant="contained" disabled={loading}>{loading ? "Searching…" : "Search"}</Button>
+            <Button component={RouterLink} to={`/trips/${trip.id}/itinerary`}>View itinerary</Button>
             <Button component={RouterLink} to={`/trips/${trip.id}`}>Back to trip</Button>
           </Stack>
         </Stack>
@@ -196,6 +248,7 @@ export default function Search() {
                       <TableCell align="right">Price (USD)</TableCell>
                       <TableCell>Availability</TableCell>
                       <TableCell>Quote valid until</TableCell>
+                      {canEdit && <TableCell>Itinerary</TableCell>}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -212,6 +265,27 @@ export default function Search() {
                           {o.available ? <Chip size="small" color="success" label="Available" /> : <Chip size="small" label="Unavailable" />}
                         </TableCell>
                         <TableCell>{stamp(o.validUntil)}</TableCell>
+                        {canEdit && (
+                          <TableCell>
+                            {added.has(o.id) ? (
+                              <Chip size="small" color="primary" label="In itinerary" />
+                            ) : (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                disabled={adding !== null || !o.available}
+                                onClick={() => addOffer(o, itineraryVersion)}
+                              >
+                                {adding === o.id ? "Adding…" : "Add to itinerary"}
+                              </Button>
+                            )}
+                            {notes[o.id]?.text && (
+                              <Typography variant="caption" color={notes[o.id].ok ? "success.main" : "error"} sx={{ display: "block" }}>
+                                {notes[o.id].text}
+                              </Typography>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -220,6 +294,20 @@ export default function Search() {
             </>
           )}
         </Stack>
+      )}
+      {conflict && (
+        <ConflictDialog
+          change={conflict.change}
+          latest={conflict.latest}
+          busy={reapplying}
+          onDiscard={() => setConflict(null)}
+          onReapply={() => {
+            const offer = result?.offers.find((o) => o.id === conflict.offerId);
+            if (!offer) return setConflict(null);
+            setReapplying(true);
+            void addOffer(offer, conflict.latest.version, true);
+          }}
+        />
       )}
     </Stack>
   );

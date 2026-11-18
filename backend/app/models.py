@@ -3,6 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -11,6 +12,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -60,6 +62,39 @@ class Trip(Base):
     version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ItineraryItem(Base):
+    """An offer copied into a trip's itinerary. The snapshot never changes when the provider's data does."""
+
+    __tablename__ = "itinerary_items"
+    __table_args__ = (
+        UniqueConstraint("trip_id", "offer_id", name="uq_itinerary_items_trip_offer"),
+        CheckConstraint("category IN ('transport', 'accommodation', 'activity')", name="ck_itinerary_items_category"),
+        CheckConstraint("price_amount IS NULL OR price_amount >= 0", name="ck_itinerary_items_price"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    trip_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("trips.id", ondelete="CASCADE"), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+    # Offer snapshot (as the provider returned it when the item was added).
+    offer_id: Mapped[str] = mapped_column(String(128))
+    provider_id: Mapped[str] = mapped_column(String(128))
+    category: Mapped[str] = mapped_column(String(20))
+    title: Mapped[str] = mapped_column(String(300))
+    description: Mapped[str] = mapped_column(Text)
+    destination: Mapped[str] = mapped_column(String(200))
+    origin: Mapped[str | None] = mapped_column(String(200))
+    starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    travelers: Mapped[int] = mapped_column(Integer)
+    price_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    currency: Mapped[str] = mapped_column(String(3), default="USD", server_default="USD")
+    revision: Mapped[str] = mapped_column(String(64))
+    available: Mapped[bool] = mapped_column(Boolean)
+    valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    added_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class TripParticipant(Base):

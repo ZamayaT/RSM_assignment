@@ -3,6 +3,7 @@ import logging
 import time
 from datetime import date, datetime
 from typing import Literal
+from urllib.parse import quote
 
 import httpx
 from pydantic import BaseModel, ValidationError
@@ -79,6 +80,10 @@ class ProviderBadRequest(ProviderError):
         self.fields = fields
 
 
+class ProviderNotFound(ProviderError):
+    """Provider 404: no such record."""
+
+
 class ProviderRateLimited(ProviderError):
     """Provider 429. `retry_after` is the seconds the provider asked to wait, if it said so."""
 
@@ -119,8 +124,17 @@ def _bad_request_fields(response: httpx.Response) -> dict[str, str]:
         return {}
 
 
-def search_offers(params: SearchParams, transport: httpx.BaseTransport | None = None) -> SearchResult:
-    """POST /offers/search. No retries: callers see the failure and may repeat the search."""
+def _call(
+    method: str,
+    path: str,
+    what: str,
+    json: dict | None = None,
+    transport: httpx.BaseTransport | None = None,
+) -> tuple[httpx.Response, str | None]:
+    """One provider request. Returns the 200 response; every other outcome raises a typed error.
+
+    No retries: callers see the failure and may repeat the action.
+    """
     settings = get_settings()
     started = time.monotonic()
     try:
@@ -130,17 +144,18 @@ def search_offers(params: SearchParams, transport: httpx.BaseTransport | None = 
             timeout=settings.provider_timeout_seconds,
             transport=transport,
         ) as client:
-            response = client.post("/offers/search", json=params.model_dump(mode="json", exclude_none=True))
+            response = client.request(method, path, json=json)
     except httpx.TimeoutException as exc:
-        logger.warning("provider search timed out: %s", exc)
+        logger.warning("provider %s timed out: %s", what, exc)
         raise ProviderTimeout("The provider did not answer in time.") from exc
     except httpx.TransportError as exc:
-        logger.warning("provider unreachable: %s", exc)
+        logger.warning("provider %s unreachable: %s", what, exc)
         raise ProviderUnreachable("The provider could not be reached.") from exc
 
     request_id = response.headers.get("X-Request-Id")
     logger.info(
-        "provider search status=%s request_id=%s elapsed_ms=%d",
+        "provider %s status=%s request_id=%s elapsed_ms=%d",
+        what,
         response.status_code,
         request_id,
         (time.monotonic() - started) * 1000,
@@ -148,14 +163,33 @@ def search_offers(params: SearchParams, transport: httpx.BaseTransport | None = 
 
     status = response.status_code
     if status == 200:
-        try:
-            return SearchResult.model_validate(response.json())
-        except (ValueError, ValidationError) as exc:
-            raise ProviderMalformedResponse("The provider returned an invalid search response.", request_id) from exc
+        return response, request_id
     if status == 400:
-        raise ProviderBadRequest("The provider rejected the search.", _bad_request_fields(response), request_id)
+        raise ProviderBadRequest("The provider rejected the request.", _bad_request_fields(response), request_id)
+    if status == 404:
+        raise ProviderNotFound("The provider does not know this record.", request_id)
     if status == 429:
-        raise ProviderRateLimited("The provider is rate limiting searches.", _retry_after(response), request_id)
+        raise ProviderRateLimited("The provider is rate limiting requests.", _retry_after(response), request_id)
     if status == 503:
         raise ProviderUnavailable("The provider is unavailable.", request_id)
     raise ProviderMalformedResponse(f"Unexpected provider status {status}.", request_id)
+
+
+def search_offers(params: SearchParams, transport: httpx.BaseTransport | None = None) -> SearchResult:
+    """POST /offers/search."""
+    response, request_id = _call(
+        "POST", "/offers/search", "search", params.model_dump(mode="json", exclude_none=True), transport
+    )
+    try:
+        return SearchResult.model_validate(response.json())
+    except (ValueError, ValidationError) as exc:
+        raise ProviderMalformedResponse("The provider returned an invalid search response.", request_id) from exc
+
+
+def get_offer(offer_id: str, transport: httpx.BaseTransport | None = None) -> ProviderOffer:
+    """GET /offers/{id}: the offer as the provider has it now. Unknown ids raise ProviderNotFound."""
+    response, request_id = _call("GET", f"/offers/{quote(offer_id, safe='')}", "get offer", None, transport)
+    try:
+        return ProviderOffer.model_validate(response.json())
+    except (ValueError, ValidationError) as exc:
+        raise ProviderMalformedResponse("The provider returned an invalid offer.", request_id) from exc
