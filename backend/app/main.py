@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app import auth, destinations, trips
+from app import auth, destinations, participants, trips, users
 from app.config import get_settings
 from app.db import check_database
 from app.errors import install_error_handling
@@ -31,6 +31,8 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(destinations.router)
 app.include_router(trips.router)
+app.include_router(participants.router)
+app.include_router(users.router)
 
 
 @app.get("/health")

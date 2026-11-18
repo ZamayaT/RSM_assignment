@@ -52,9 +52,9 @@ Seeded test users who can "log in" by selecting a name, and trips that a logged-
 - [x] 4.5 Basic trip overview: dates, destinations, travelers, budget, notes, role, "Edit" link (the form loads the latest version).
 
 ### Tests and documentation
-- [ ] 5.1 Auth and trip tests: login, `401`, validation errors (each field), create/list/get, only-my-trips visibility, `404` for non-participants, money exactness.
-- [ ] 5.2 Versioning and persistence tests: successful update increments the version, stale update gets `409` and loses nothing, two concurrent saves from the same version (exactly one succeeds), trips survive an engine restart.
-- [ ] 5.3 Update `README.md`: seeded users, how to log in from the browser, how to run the tests, and `GET /docs` pointer (only what is implemented).
+- [x] 5.1 Auth and trip tests: login, `401`, validation errors (each field), create/list/get, only-my-trips visibility, `404` for non-participants, money exactness.
+- [x] 5.2 Versioning and persistence tests: successful update increments the version, stale update gets `409` and loses nothing, two concurrent saves from the same version (exactly one succeeds), trips survive an engine restart.
+- [x] 5.3 Update `README.md`: seeded users, how to log in from the browser, how to run the tests, and `GET /docs` pointer (only what is implemented).
 
 ## Acceptance criteria
 - In the browser at http://localhost:5173: choose a seeded user, create a trip, see it in My trips, open its overview, edit it, switch to another user and not see it.

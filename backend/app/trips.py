@@ -12,7 +12,7 @@ from app.auth import CurrentUser
 from app.db import get_session
 from app.destinations import SUPPORTED_DESTINATIONS
 from app.errors import ApiError
-from app.models import ROLE_EDITOR, ROLE_ORGANIZER, Trip, TripParticipant, User
+from app.models import ROLE_EDITOR, ROLE_ORGANIZER, ROLES, Trip, TripParticipant, User
 
 router = APIRouter(prefix="/trips", tags=["trips"])
 
@@ -90,9 +90,25 @@ def _trip_out(trip: Trip, role: str) -> TripOut:
     )
 
 
+def can_read(role: str) -> bool:
+    """Any participant may read the trip."""
+    return role in ROLES
+
+
 def can_edit(role: str) -> bool:
-    """Who may change a trip. Change 3 extends the roles; for now only the organizer exists."""
+    """Organizer and editor may change the trip."""
     return role in (ROLE_ORGANIZER, ROLE_EDITOR)
+
+
+def can_manage_participants(role: str) -> bool:
+    """Only the organizer manages who is on the trip and with which role."""
+    return role == ROLE_ORGANIZER
+
+
+def require(allowed: bool, message: str = "You are not allowed to do this on this trip.") -> None:
+    """403 for a participant whose role does not allow the action (non-participants already got 404)."""
+    if not allowed:
+        raise ApiError(403, "FORBIDDEN", message)
 
 
 def get_trip_for_user(session: Session, trip_id: uuid.UUID, user: User) -> tuple[Trip, str]:
@@ -141,14 +157,14 @@ def list_trips(user: CurrentUser, session: SessionDep) -> list[TripOut]:
 @router.get("/{trip_id}")
 def get_trip(trip_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> TripOut:
     trip, role = get_trip_for_user(session, trip_id, user)
+    require(can_read(role))
     return _trip_out(trip, role)
 
 
 @router.put("/{trip_id}")
 def update_trip(trip_id: uuid.UUID, body: TripUpdateIn, user: CurrentUser, session: SessionDep) -> TripOut:
     trip, role = get_trip_for_user(session, trip_id, user)
-    if not can_edit(role):
-        raise ApiError(403, "FORBIDDEN", "You are not allowed to edit this trip.")
+    require(can_edit(role), "You are not allowed to edit this trip.")
 
     # Check and update in one statement: if another save got in first, no row matches the version.
     updated = session.scalar(

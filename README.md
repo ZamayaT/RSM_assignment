@@ -66,7 +66,11 @@ docker compose up --build -d
 | Backend API documentation | http://localhost:8000/docs |
 | Provider mock API documentation | http://localhost:4010/docs |
 
-The web page should show a green "Backend status: ok" message.
+The start page lists the seeded test users (`alice`, `bob`, `carol`). The backend creates them on startup if the database has none, and applies its migrations automatically when its container starts.
+
+To log in, click a name. From there you can create a trip (name, destinations Lisbon/Paris/Rome, dates, travelers, budget in USD, notes), see it under **My trips**, open it, and edit it. Use **Switch user** in the top bar to log in as someone else: each user sees only their own trips. If two people edit the same trip, the second save is refused with a "changed by someone else" message and nothing is overwritten; click **Reload latest** to continue from the newest version. Your login is kept in the browser, so a page reload keeps you signed in.
+
+The API endpoints are listed and can be tried at http://localhost:8000/docs.
 
 ## 7. Run the tests
 
@@ -76,6 +80,8 @@ With the services running (in another terminal):
 docker compose exec backend pytest
 docker compose exec mock_provider pytest
 ```
+
+The backend tests create and use their own database (`<POSTGRES_DB>_test`, dropped and recreated on each run), so your trips and logins are never touched. All of them should pass; they cover login, validation, trips, visibility, versioning conflicts, concurrent saves and persistence across a restart.
 
 The provider mock stores its data in its own PostgreSQL schema (`mock_provider`) and applies its migrations automatically when its container starts. Its fixtures, demo tokens, clock, `/control` endpoints and copy-paste failure scenarios are documented in [`mock_provider/README.md`](mock_provider/README.md). On startup it also loads its fixture offers (Lisbon, Paris, Rome) if there are none.
 
