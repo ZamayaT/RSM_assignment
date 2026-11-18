@@ -45,11 +45,11 @@ Seeded test users who can "log in" by selecting a name, and trips that a logged-
 - [x] 3.3 `PUT /trips/{id}` with optimistic locking on `version` (`409` with the latest trip on mismatch; version incremented on success); permission helper in the trips module that allows organizer and editor to edit.
 
 ### Frontend
-- [ ] 4.1 API client and session: base URL from configuration, bearer token from `localStorage`, error handling (`401` returns to user selection); add `react-router-dom` and the route structure.
-- [ ] 4.2 User selection start page (list of seeded users, click to log in) and a "Switch user" action in the app bar.
-- [ ] 4.3 My trips: list with name, dates, destinations, and the user's role; "Create trip" button; empty state.
-- [ ] 4.4 Create/edit trip form: all fields, per-field validation errors from the backend, success only after the save succeeded, version-conflict message with a "reload latest" action.
-- [ ] 4.5 Basic trip overview: dates, destinations, travelers, budget, notes, role, "Edit" link (the form loads the latest version).
+- [x] 4.1 API client and session: base URL from configuration, bearer token from `localStorage`, error handling (`401` returns to user selection); add `react-router-dom` and the route structure.
+- [x] 4.2 User selection start page (list of seeded users, click to log in) and a "Switch user" action in the app bar.
+- [x] 4.3 My trips: list with name, dates, destinations, and the user's role; "Create trip" button; empty state.
+- [x] 4.4 Create/edit trip form: all fields, per-field validation errors from the backend, success only after the save succeeded, version-conflict message with a "reload latest" action.
+- [x] 4.5 Basic trip overview: dates, destinations, travelers, budget, notes, role, "Edit" link (the form loads the latest version).
 
 ### Tests and documentation
 - [ ] 5.1 Auth and trip tests: login, `401`, validation errors (each field), create/list/get, only-my-trips visibility, `404` for non-participants, money exactness.
@@ -65,4 +65,4 @@ Seeded test users who can "log in" by selecting a name, and trips that a logged-
 - `assignment/` is untouched.
 
 ## Technologies implemented
-(To be filled as tasks are completed.)
+- react-router-dom: client-side routing (user selection, trips, create/edit, overview) so views survive a page reload (`frontend/src/App.tsx`).
