@@ -5,14 +5,15 @@ Repository: RSM_assignment. Lightweight, change-driven workflow. No extra framew
 ## Project Files (in `claude/`)
 - `CLAUDE.md` — these rules (always follow).
 - `PROJECT.md` — description, objectives, MVP scope, technologies, requirements. Read only when the task needs that context.
-- `changes/` — one file per change (`changes/NN-short-name.md`). A change is one development step. Each file has a goal, scope, and a checklist of small tasks:
+- `changes/` — one file per change (`changes/NN-short-name.md`). A change is one development step. Each file has a goal, scope, a checklist of small tasks, acceptance criteria, and a **Technologies implemented** section:
   ```
   - [ ] 1.1 Task description
   - [x] 1.2 Completed task
   ```
+  - **Technologies implemented**: a simple list of the applications, dependencies, or important libraries added in that change, each with a one-line reason (why it is used / where). Keep it updated as tasks that add technologies are completed; list only what is actually implemented, and only new items (do not repeat ones from earlier changes).
 
 ## Workflow
-1. **Plan**: When asked to define a change, create its file in `changes/` with the goal, scope, and its tasks as `[ ]` checkboxes.
+1. **Plan**: When asked to define a change, create its file in `changes/` with the goal, scope, its tasks as `[ ]` checkboxes, acceptance criteria, and an empty **Technologies implemented** section.
 2. **Approval**: Present a short plan and **wait for my explicit approval** before writing any code.
 3. **Before each task**: Read the change file to confirm the task and see what is already done.
 4. **Implement**: When I say "Implement X", work **only on X** (one task, or the whole change only if I name the change). Never start, prepare, or "while I'm here" fix other tasks unless I explicitly ask for multiple.
