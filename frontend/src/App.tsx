@@ -2,6 +2,7 @@ import { AppBar, Button, Container, Toolbar, Typography } from "@mui/material";
 import { Link as RouterLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { RequireUser, SessionProvider, useSession } from "./session";
 import Participants from "./pages/Participants";
+import Bookings from "./pages/Bookings";
 import BudgetView from "./pages/BudgetView";
 import Itinerary from "./pages/Itinerary";
 import Search from "./pages/Search";
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="/trips/:id/search" element={<RequireUser><Search /></RequireUser>} />
           <Route path="/trips/:id/itinerary" element={<RequireUser><Itinerary /></RequireUser>} />
           <Route path="/trips/:id/budget" element={<RequireUser><BudgetView /></RequireUser>} />
+          <Route path="/trips/:id/bookings" element={<RequireUser><Bookings /></RequireUser>} />
           <Route path="/trips/:id/edit" element={<RequireUser><TripForm /></RequireUser>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

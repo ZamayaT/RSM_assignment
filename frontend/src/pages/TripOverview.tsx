@@ -1,7 +1,7 @@
 import { Alert, Box, Button, Chip, CircularProgress, Stack, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { Link as RouterLink, useLocation, useParams } from "react-router-dom";
-import { api, ApiError, type Budget, type Itinerary, type Trip } from "../api";
+import { api, ApiError, type Bookings, type Budget, type Itinerary, type Trip } from "../api";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -23,15 +23,18 @@ export default function TripOverview() {
   // The summary is optional: if it cannot be loaded the rest of the overview still works.
   const [budget, setBudget] = useState<Budget | null>(null);
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
+  const [bookings, setBookings] = useState<Bookings | null>(null);
 
   useEffect(() => {
     setTrip(null);
     setError(null);
     setBudget(null);
     setItinerary(null);
+    setBookings(null);
     api.getTrip(id).then(setTrip).catch((e: ApiError) => setError(e.status === 404 ? "Trip not found." : e.message));
     api.budget(id).then(setBudget).catch(() => undefined);
     api.itinerary(id).then(setItinerary).catch(() => undefined);
+    api.bookings(id).then(setBookings).catch(() => undefined);
   }, [id]);
 
   if (error)
@@ -75,10 +78,17 @@ export default function TripOverview() {
           value={`${itinerary.items.length} item(s), ${itinerary.items.reduce((n, i) => n + i.warnings.length, 0)} warning(s)`}
         />
       )}
+      {bookings && (
+        <Row
+          label="Bookings"
+          value={`${bookings.counts.confirmed} confirmed, ${bookings.counts.pending} pending, ${bookings.counts.unknown} unknown, ${bookings.counts.failed} failed`}
+        />
+      )}
       {trip.notes && <Row label="Notes" value={trip.notes} />}
       <Stack direction="row" spacing={2}>
         <Button variant="contained" component={RouterLink} to={`/trips/${trip.id}/search`}>Search</Button>
         <Button component={RouterLink} to={`/trips/${trip.id}/itinerary`}>Itinerary</Button>
+        <Button component={RouterLink} to={`/trips/${trip.id}/bookings`}>Bookings</Button>
         <Button component={RouterLink} to={`/trips/${trip.id}/budget`}>Budget</Button>
         <Button component={RouterLink} to={`/trips/${trip.id}/participants`}>Participants</Button>
         <Button component={RouterLink} to="/trips">Back to My trips</Button>

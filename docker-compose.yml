@@ -16,12 +16,25 @@ services:
 
   backend:
     build: ./backend
+    image: travel-backend
     env_file: .env
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build: ./backend
+    image: travel-backend
+    command: ["python", "-m", "app.worker"]
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_started
     restart: unless-stopped
 
   mock_provider:

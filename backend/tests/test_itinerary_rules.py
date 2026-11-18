@@ -133,3 +133,39 @@ def test_destination_not_in_trip_is_flagged():
     result = evaluate([item("a", destination="Paris", start=at(12), end=at(13))], TRIP, NOW)
 
     assert codes(result, "a") == [DESTINATION_NOT_IN_TRIP]
+
+
+# --- booking states ---
+
+
+def booked(id, booking, **kwargs):
+    return ItemFacts(**{**item(id, **kwargs).__dict__, "booking": booking})
+
+
+def test_booking_states_set_the_item_status():
+    result = evaluate(
+        [
+            booked("a", "initiated"),
+            booked("b", "pending"),
+            booked("c", "confirmed"),
+            booked("d", "failed"),
+            booked("e", "unknown"),
+        ],
+        TRIP,
+        NOW,
+    )
+
+    assert [result[i].status for i in "abcde"] == ["booking_pending", "booking_pending", "confirmed", "failed", "unknown"]
+
+
+def test_live_booking_drops_the_expired_quote_warning_but_failed_keeps_it():
+    expired = NOW - timedelta(hours=1)
+    result = evaluate(
+        [booked("a", "confirmed", valid_until=expired), booked("b", "failed", valid_until=expired), item("c", valid_until=expired)],
+        TRIP,
+        NOW,
+    )
+
+    assert EXPIRED_QUOTE not in codes(result, "a")
+    assert result["b"].status == "failed" and EXPIRED_QUOTE in codes(result, "b")
+    assert result["c"].status == STATUS_EXPIRED

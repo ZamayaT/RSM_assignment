@@ -8,14 +8,16 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -24,6 +26,15 @@ ROLE_ORGANIZER = "organizer"
 ROLE_EDITOR = "editor"
 ROLE_VIEWER = "viewer"
 ROLES = (ROLE_ORGANIZER, ROLE_EDITOR, ROLE_VIEWER)
+
+BOOKING_INITIATED = "initiated"
+BOOKING_PENDING = "pending"
+BOOKING_CONFIRMED = "confirmed"
+BOOKING_FAILED = "failed"
+BOOKING_UNKNOWN = "unknown"
+BOOKING_STATUSES = (BOOKING_INITIATED, BOOKING_PENDING, BOOKING_CONFIRMED, BOOKING_FAILED, BOOKING_UNKNOWN)
+# An attempt in one of these states blocks a new one for the same item.
+BOOKING_LIVE_STATUSES = (BOOKING_INITIATED, BOOKING_PENDING, BOOKING_UNKNOWN, BOOKING_CONFIRMED)
 
 
 class User(Base):
@@ -106,3 +117,55 @@ class TripParticipant(Base):
     trip_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("trips.id", ondelete="CASCADE"), primary_key=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True)
     role: Mapped[str] = mapped_column(String(20))
+
+
+class BookingAttempt(Base):
+    """One booking decision for an itinerary item. Saved as `initiated` before the provider is called."""
+
+    __tablename__ = "booking_attempts"
+    __table_args__ = (
+        UniqueConstraint("intent_id", name="uq_booking_attempts_intent"),
+        UniqueConstraint("client_reference", name="uq_booking_attempts_reference"),
+        CheckConstraint(
+            "status IN ('initiated', 'pending', 'confirmed', 'failed', 'unknown')", name="ck_booking_attempts_status"
+        ),
+        CheckConstraint("expected_amount >= 0", name="ck_booking_attempts_amount"),
+        Index(
+            "uq_booking_attempts_live_item",
+            "item_id",
+            unique=True,
+            postgresql_where=text("status IN ('initiated', 'pending', 'unknown', 'confirmed')"),
+        ),
+        Index(
+            "ix_booking_attempts_due",
+            "next_check_at",
+            postgresql_where=text("status IN ('initiated', 'pending', 'unknown')"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    trip_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("trips.id", ondelete="CASCADE"), index=True)
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("itinerary_items.id", ondelete="CASCADE"), index=True)
+    intent_id: Mapped[uuid.UUID] = mapped_column()
+    client_reference: Mapped[str] = mapped_column(String(128))
+    idempotency_key: Mapped[str] = mapped_column(String(128))
+    status: Mapped[str] = mapped_column(String(20))
+    # What the user confirmed (sent to the provider).
+    offer_id: Mapped[str] = mapped_column(String(128))
+    expected_revision: Mapped[str] = mapped_column(String(64))
+    expected_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    currency: Mapped[str] = mapped_column(String(3))
+    # What the provider accepted (immutable once stored).
+    provider_booking_id: Mapped[str | None] = mapped_column(String(128))
+    accepted_offer: Mapped[dict | None] = mapped_column(JSONB)
+    accepted_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
+    failure_code: Mapped[str | None] = mapped_column(String(100))
+    failure_message: Mapped[str | None] = mapped_column(Text)
+    # Worker bookkeeping.
+    check_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    next_check_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    unresolved: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    requested_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

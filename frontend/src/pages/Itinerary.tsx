@@ -1,9 +1,10 @@
 import { Alert, Box, Button, Chip, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
-import { api, ApiError, type Itinerary as ItineraryData, type ItineraryItem, type Trip } from "../api";
+import { api, ApiError, type BookingAttempt, type Itinerary as ItineraryData, type ItineraryItem, type Trip } from "../api";
+import BookDialog from "../BookDialog";
 import ConflictDialog, { type PendingChange } from "../ConflictDialog";
-import { stamp } from "../format";
+import { LIVE_ITEM_STATUSES, STATUS_LABELS, stamp } from "../format";
 
 interface Notice {
   severity: "success" | "error" | "info";
@@ -18,6 +19,30 @@ export default function Itinerary() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [conflict, setConflict] = useState<{ change: PendingChange; latest: ItineraryData } | null>(null);
+  const [booking, setBooking] = useState<ItineraryItem | null>(null);
+
+  // While a booking can still settle by itself, keep the labels fresh.
+  const unsettled = itinerary?.items.some((i) => i.status === "booking_pending" || i.status === "unknown") ?? false;
+  useEffect(() => {
+    if (!unsettled) return;
+    const timer = setInterval(() => {
+      api.itinerary(id).then(setItinerary).catch(() => undefined);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [unsettled, id]);
+
+  function booked(attempt: BookingAttempt) {
+    setBooking(null);
+    const text: Record<string, string> = {
+      confirmed: `“${attempt.itemTitle}” is booked and confirmed.`,
+      pending: `“${attempt.itemTitle}” is accepted and pending; the Bookings view updates it.`,
+      initiated: `“${attempt.itemTitle}” is being booked.`,
+      failed: `The booking of “${attempt.itemTitle}” failed: ${attempt.failure?.message ?? ""} Nothing was booked.`,
+      unknown: `No answer from the provider for “${attempt.itemTitle}”. It is not failed; we are checking what happened.`,
+    };
+    setNotice({ severity: attempt.status === "failed" ? "error" : attempt.status === "confirmed" ? "success" : "info", text: text[attempt.status] });
+    api.itinerary(id).then(setItinerary).catch(() => undefined);
+  }
 
   useEffect(() => {
     Promise.all([api.getTrip(id), api.itinerary(id)])
@@ -76,6 +101,13 @@ export default function Itinerary() {
     );
   }
 
+  function refresh(item: ItineraryItem) {
+    void perform(
+      { description: `Refresh the price of “${item.title}” to the provider's current terms.`, apply: (v) => api.refreshItem(id, item.id, v) },
+      itinerary!.version,
+    );
+  }
+
   function move(index: number, delta: -1 | 1) {
     const ids = items.map((i) => i.id);
     const target = index + delta;
@@ -93,6 +125,7 @@ export default function Itinerary() {
     <Stack spacing={2}>
       <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
         <Typography variant="h5" sx={{ flexGrow: 1 }}>Itinerary — {trip.name}</Typography>
+        <Button component={RouterLink} to={`/trips/${id}/bookings`}>Bookings</Button>
         <Button component={RouterLink} to={`/trips/${id}/budget`}>Budget</Button>
         {canEdit && <Button variant="contained" component={RouterLink} to={`/trips/${id}/search`}>Search</Button>}
         <Button component={RouterLink} to={`/trips/${id}`}>Back to trip</Button>
@@ -102,8 +135,8 @@ export default function Itinerary() {
         <strong>How scheduling is checked (simplified).</strong> Times are compared as UTC instants. Two items conflict when
         their time ranges overlap (an end equal to the next start is fine); a stay may overlap activities and transport,
         but two overlapping stays conflict. We also flag missing schedule or price, expired quotes, items outside the trip
-        dates, and destinations not on the trip. Travel time and opening hours are not checked. All prices are estimates,
-        not bookings.
+        dates, and destinations not on the trip. Travel time and opening hours are not checked. Prices are estimates until
+        you book an item with “Book”, which shows the provider's current terms and asks you to confirm them.
       </Alert>
 
       {notice && <Alert severity={notice.severity} onClose={() => setNotice(null)}>{notice.text}</Alert>}
@@ -122,11 +155,12 @@ export default function Itinerary() {
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
                     <Typography variant="subtitle1">{item.title}</Typography>
                     <Chip size="small" label={item.category} />
-                    {item.status === "expired_quote" ? (
-                      <Chip size="small" color="warning" label="Expired quote" />
-                    ) : (
-                      <Chip size="small" variant="outlined" label="Estimate" />
-                    )}
+                    <Chip
+                      size="small"
+                      color={STATUS_LABELS[item.status].color}
+                      variant={item.status === "estimate" ? "outlined" : "filled"}
+                      label={STATUS_LABELS[item.status].label}
+                    />
                   </Stack>
                   <Typography variant="body2" color="text.secondary">{item.description}</Typography>
                   <Typography variant="body2">
@@ -143,13 +177,21 @@ export default function Itinerary() {
                 </Box>
                 {canEdit && (
                   <Stack direction="row" spacing={0.5}>
+                    {!LIVE_ITEM_STATUSES.includes(item.status) && (
+                      <>
+                        <Button size="small" variant="contained" disabled={busy} onClick={() => setBooking(item)}>
+                          {item.status === "failed" ? "Retry booking" : "Book"}
+                        </Button>
+                        <Button size="small" disabled={busy} onClick={() => refresh(item)}>Refresh price</Button>
+                      </>
+                    )}
                     <Button size="small" disabled={busy || index === 0} onClick={() => move(index, -1)} aria-label={`Move ${item.title} up`}>
                       Up
                     </Button>
                     <Button size="small" disabled={busy || index === items.length - 1} onClick={() => move(index, 1)} aria-label={`Move ${item.title} down`}>
                       Down
                     </Button>
-                    <Button size="small" color="error" disabled={busy} onClick={() => remove(item)}>
+                    <Button size="small" color="error" disabled={busy || LIVE_ITEM_STATUSES.includes(item.status)} onClick={() => remove(item)}>
                       Remove
                     </Button>
                   </Stack>
@@ -159,6 +201,8 @@ export default function Itinerary() {
           ))}
         </Stack>
       )}
+
+      {booking && <BookDialog tripId={id} item={booking} onClose={() => setBooking(null)} onBooked={booked} />}
 
       {conflict && (
         <ConflictDialog

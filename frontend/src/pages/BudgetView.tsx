@@ -15,6 +15,7 @@ import {
 import { useEffect, useState } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
 import { api, ApiError, type Budget } from "../api";
+import { STATUS_LABELS } from "../format";
 
 export default function BudgetView() {
   const { id = "" } = useParams();
@@ -70,6 +71,9 @@ export default function BudgetView() {
                   <TableCell align="right">{line.amount ?? "—"}</TableCell>
                   <TableCell>
                     <Chip size="small" variant="outlined" label={line.kind === "estimate" ? "Estimate" : "Confirmed"} />
+                    {line.status !== "estimate" && line.status !== "expired_quote" && line.status !== "confirmed" && (
+                      <Chip size="small" color={STATUS_LABELS[line.status].color} label={STATUS_LABELS[line.status].label} sx={{ ml: 1 }} />
+                    )}
                     {line.expired && <Chip size="small" color="warning" label="Expired quote" sx={{ ml: 1 }} />}
                   </TableCell>
                 </TableRow>
@@ -93,8 +97,9 @@ export default function BudgetView() {
       </Table>
 
       <Typography variant="body2" color="text.secondary">
-        Each amount is the offer's total price for the party as quoted when it was added; it is an estimate, not a booking,
-        and is not multiplied by travelers. Totals are exact sums to the cent (any result with more decimals is rounded
+        Each amount is the offer's total price for the party and is not multiplied by travelers. An estimate is the price
+        saved when the offer was added; a confirmed cost is the price the provider accepted when booking, and later price
+        changes never alter it. Items with a booking pending or an unknown outcome still count as estimates. Totals are exact sums to the cent (any result with more decimals is rounded
         half-up to the cent). Items without a price are left out of the totals. Expired quotes still count but are flagged.
       </Typography>
     </Stack>

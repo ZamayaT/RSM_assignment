@@ -14,8 +14,9 @@ from pydantic import BaseModel
 from sqlalchemy import select
 
 from app.auth import CurrentUser
-from app.itinerary_rules import ItemFacts, evaluate, STATUS_EXPIRED, TripFacts
-from app.models import ItineraryItem
+from app.bookings import latest_attempts
+from app.itinerary_rules import EXPIRED_QUOTE, ItemFacts, evaluate, TripFacts
+from app.models import BOOKING_CONFIRMED, ItineraryItem
 from app.trips import SessionDep, can_read, get_trip_for_user, require
 
 router = APIRouter(tags=["budget"])
@@ -37,6 +38,7 @@ class BudgetLine:
     amount: Decimal | None  # None: the item has no price and is left out of the totals
     kind: str  # "estimate" or "confirmed"
     expired: bool = False
+    status: str = "estimate"  # the item's status label (estimate, booking_pending, confirmed, ...)
 
 
 @dataclass(frozen=True)
@@ -66,6 +68,7 @@ class BudgetLineOut(BaseModel):
     amount: str | None
     kind: Literal["estimate", "confirmed"]
     expired: bool
+    status: str
 
 
 class BudgetOut(BaseModel):
@@ -90,16 +93,25 @@ def get_budget(trip_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> Bu
             .order_by(ItineraryItem.position, ItineraryItem.added_at)
         )
     )
+    attempts = latest_attempts(session, trip_id)
     facts = [
-        ItemFacts(i.id, i.title, i.category, i.destination, i.starts_at, i.ends_at, i.price_amount, i.valid_until)
+        ItemFacts(
+            i.id, i.title, i.category, i.destination, i.starts_at, i.ends_at, i.price_amount, i.valid_until,
+            attempts[i.id].status if i.id in attempts else None,
+        )
         for i in items
     ]
     evaluations = evaluate(facts, TripFacts(trip.start_date, trip.end_date, tuple(trip.destinations)), datetime.now(timezone.utc))
-    # Every item is an estimate until bookings exist (change 6).
-    lines = [
-        BudgetLine(str(i.id), i.title, i.category, i.price_amount, ESTIMATE, evaluations[i.id].status == STATUS_EXPIRED)
-        for i in items
-    ]
+    lines = []
+    for i in items:
+        ev = evaluations[i.id]
+        attempt = attempts.get(i.id)
+        if attempt is not None and attempt.status == BOOKING_CONFIRMED:
+            # The accepted price from the provider's booking; later provider price changes never alter it.
+            lines.append(BudgetLine(str(i.id), i.title, i.category, attempt.accepted_amount, CONFIRMED, False, ev.status))
+        else:
+            expired = any(w.code == EXPIRED_QUOTE for w in ev.warnings)
+            lines.append(BudgetLine(str(i.id), i.title, i.category, i.price_amount, ESTIMATE, expired, ev.status))
     totals = compute_totals(lines, trip.budget)
     return BudgetOut(
         lines=[
@@ -110,6 +122,7 @@ def get_budget(trip_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> Bu
                 amount=None if l.amount is None else f"{money(l.amount):.2f}",
                 kind=l.kind,
                 expired=l.expired,
+                status=l.status,
             )
             for l in lines
         ],

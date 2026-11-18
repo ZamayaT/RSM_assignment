@@ -46,7 +46,7 @@ def database():
 def client(database):
     """API client with the startup seed applied and no trips or logins left over from other tests."""
     with get_engine().begin() as connection:
-        connection.execute(text("TRUNCATE itinerary_items, trip_participants, trips, auth_tokens"))
+        connection.execute(text("TRUNCATE booking_attempts, itinerary_items, trip_participants, trips, auth_tokens"))
     with TestClient(app) as test_client:
         yield test_client
 

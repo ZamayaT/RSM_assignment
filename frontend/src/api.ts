@@ -78,6 +78,8 @@ export interface SearchResult {
   searchedAt: string;
 }
 
+export type ItemStatus = "estimate" | "expired_quote" | "booking_pending" | "confirmed" | "failed" | "unknown";
+
 export interface ItineraryWarning {
   code: string;
   message: string;
@@ -99,7 +101,7 @@ export interface ItineraryItem {
   revision: string;
   available: boolean;
   validUntil: string | null;
-  status: "estimate" | "expired_quote";
+  status: ItemStatus;
   warnings: ItineraryWarning[];
   addedAt: string;
 }
@@ -116,6 +118,7 @@ export interface BudgetLine {
   amount: string | null;
   kind: "estimate" | "confirmed";
   expired: boolean;
+  status: ItemStatus;
 }
 
 export interface Budget {
@@ -127,6 +130,52 @@ export interface Budget {
   budget: string;
   remaining: string; // negative when over budget
   overBudget: boolean;
+}
+
+export interface Money {
+  amount: string;
+  currency: string;
+}
+
+export interface QuoteTerms {
+  price: Money;
+  revision: string;
+  available: boolean;
+  validUntil: string | null;
+  expired: boolean;
+}
+
+// The provider's current terms next to what the itinerary saved.
+export interface Quote {
+  itemId: string;
+  saved: QuoteTerms;
+  current: QuoteTerms;
+  changes: ("price" | "revision" | "availability" | "expired")[];
+  bookable: boolean;
+  reason: string | null;
+}
+
+export type AttemptStatus = "initiated" | "pending" | "confirmed" | "failed" | "unknown";
+
+export interface BookingAttempt {
+  id: string;
+  itemId: string;
+  itemTitle: string;
+  status: AttemptStatus;
+  offerId: string;
+  requestedPrice: Money;
+  acceptedPrice: Money | null;
+  providerBookingId: string | null;
+  failure: { code: string; message: string } | null;
+  unresolved: boolean;
+  takingLonger: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Bookings {
+  attempts: BookingAttempt[]; // newest first
+  counts: { pending: number; confirmed: number; failed: number; unknown: number };
 }
 
 // Latest saved state returned with an itinerary version conflict.
@@ -143,6 +192,7 @@ export class ApiError extends Error {
     public fields: Record<string, string> = {},
     public latest?: Trip,
     public latestState?: LatestState,
+    public details?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -223,6 +273,7 @@ async function request<T>(path: string, method = "GET", body?: unknown): Promise
     data.details?.fields,
     isState ? undefined : (latest as Trip | undefined),
     isState ? (latest as LatestState) : undefined,
+    data.details as Record<string, unknown> | undefined,
   );
 }
 
@@ -244,6 +295,14 @@ export const api = {
     request<Itinerary>(`/trips/${tripId}/itinerary/${itemId}?version=${version}`, "DELETE"),
   reorderItinerary: (tripId: string, itemIds: string[], version: number) =>
     request<Itinerary>(`/trips/${tripId}/itinerary/order`, "PUT", { itemIds, version }),
+  quote: (tripId: string, itemId: string) => request<Quote>(`/trips/${tripId}/itinerary/${itemId}/quote`),
+  refreshItem: (tripId: string, itemId: string, version: number) =>
+    request<Itinerary>(`/trips/${tripId}/itinerary/${itemId}/refresh`, "POST", { version }),
+  book: (tripId: string, body: { itemId: string; intentId: string; expectedRevision: string; expectedPrice: Money }) =>
+    request<BookingAttempt>(`/trips/${tripId}/bookings`, "POST", body),
+  bookings: (tripId: string) => request<Bookings>(`/trips/${tripId}/bookings`),
+  checkBooking: (tripId: string, attemptId: string) =>
+    request<BookingAttempt>(`/trips/${tripId}/bookings/${attemptId}/check`, "POST"),
   budget: (tripId: string) => request<Budget>(`/trips/${tripId}/budget`),
   searchUsers: (query: string) => request<User[]>(`/users?query=${encodeURIComponent(query)}`),
   listParticipants: (tripId: string) => request<Participant[]>(`/trips/${tripId}/participants`),

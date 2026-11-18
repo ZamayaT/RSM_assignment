@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
@@ -9,6 +9,7 @@ from sqlalchemy import func, select, update
 
 from app import provider_client as provider
 from app.auth import CurrentUser
+from app.bookings import latest_attempts, live_attempt, lock_item
 from app.errors import ApiError
 from app.itinerary_rules import ItemFacts, TripFacts, evaluate
 from app.models import ItineraryItem, Trip
@@ -64,10 +65,14 @@ def list_items(session, trip_id: uuid.UUID) -> list[ItineraryItem]:
     )
 
 
-def itinerary_out(trip, items: list[ItineraryItem]) -> ItineraryOut:
-    """The itinerary as everyone sees it: stored order, status and warnings computed now."""
+def itinerary_out(trip, items: list[ItineraryItem], attempts: dict) -> ItineraryOut:
+    """The itinerary as everyone sees it: stored order, status and warnings computed now.
+    `attempts` maps item id to its latest booking attempt."""
     facts = [
-        ItemFacts(i.id, i.title, i.category, i.destination, i.starts_at, i.ends_at, i.price_amount, i.valid_until)
+        ItemFacts(
+            i.id, i.title, i.category, i.destination, i.starts_at, i.ends_at, i.price_amount, i.valid_until,
+            attempts[i.id].status if i.id in attempts else None,
+        )
         for i in items
     ]
     evaluations = evaluate(facts, TripFacts(trip.start_date, trip.end_date, tuple(trip.destinations)), datetime.now(timezone.utc))
@@ -103,7 +108,7 @@ def itinerary_out(trip, items: list[ItineraryItem]) -> ItineraryOut:
 def get_itinerary(trip_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> ItineraryOut:
     trip, role = get_trip_for_user(session, trip_id, user)
     require(can_read(role))
-    return itinerary_out(trip, list_items(session, trip_id))
+    return itinerary_out(trip, list_items(session, trip_id), latest_attempts(session, trip_id))
 
 
 # ---- Changes (organizer and editor). Every change carries the trip version the client last saw. ----
@@ -115,6 +120,12 @@ class AddIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     offerId: Annotated[str, Field(min_length=1, max_length=128)]
+    version: Version
+
+
+class RefreshIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     version: Version
 
 
@@ -149,7 +160,7 @@ def _conflict(session, trip_id: uuid.UUID, user) -> ApiError:
         {
             "latest": {
                 "trip": _trip_out(trip, role).model_dump(mode="json"),
-                "itinerary": itinerary_out(trip, items).model_dump(mode="json"),
+                "itinerary": itinerary_out(trip, items, latest_attempts(session, trip_id)).model_dump(mode="json"),
             }
         },
     )
@@ -168,6 +179,10 @@ def _bump_version(session, trip_id: uuid.UUID, version: int, user) -> None:
         raise _conflict(session, trip_id, user)
 
 
+def _booked() -> ApiError:
+    return ApiError(409, "ITEM_BOOKED", "This item has a booking in progress or confirmed, so it cannot be changed.")
+
+
 def _renumber(items: list[ItineraryItem]) -> None:
     for position, item in enumerate(items):
         if item.position != position:
@@ -177,7 +192,7 @@ def _renumber(items: list[ItineraryItem]) -> None:
 def _finish(session, trip_id: uuid.UUID) -> ItineraryOut:
     session.commit()
     trip, items = _current(session, trip_id)
-    return itinerary_out(trip, items)
+    return itinerary_out(trip, items, latest_attempts(session, trip_id))
 
 
 def _request_id(request: Request) -> str:
@@ -253,6 +268,11 @@ def remove_item(
     if target is None:
         session.rollback()
         raise ApiError(404, "NOT_FOUND", "This item is not in the itinerary (it may already have been removed).")
+    # Lock the item so a booking cannot slip in between this check and the delete.
+    lock_item(session, trip_id, item_id)
+    if live_attempt(session, item_id) is not None:
+        session.rollback()
+        raise _booked()
     session.delete(target)
     items.remove(target)
     _renumber(items)
@@ -274,4 +294,110 @@ def reorder_items(trip_id: uuid.UUID, body: OrderIn, user: CurrentUser, session:
             {"fields": {"itemIds": "The order must list every current item exactly once"}},
         )
     _renumber([by_id[item_id] for item_id in body.itemIds])
+    return _finish(session, trip_id)
+
+
+# ---- Quote and refresh (organizer and editor) ----
+
+
+class Terms(BaseModel):
+    price: Price
+    revision: str
+    available: bool
+    validUntil: datetime | None
+    expired: bool
+
+
+class QuoteOut(BaseModel):
+    """The offer as the provider has it now, next to what the itinerary saved, with what differs."""
+
+    itemId: str
+    saved: Terms
+    current: Terms
+    changes: list[Literal["price", "revision", "availability", "expired"]]
+    bookable: bool
+    reason: str | None
+
+
+def _terms(price: Decimal | None, currency: str, revision: str, available: bool, valid_until, now) -> Terms:
+    return Terms(
+        price=Price(amount="0.00" if price is None else f"{price:.2f}", currency=currency),
+        revision=revision,
+        available=available,
+        validUntil=valid_until,
+        expired=valid_until is not None and valid_until.astimezone(timezone.utc) < now,
+    )
+
+
+def _fetch_offer(item: ItineraryItem, request: Request, action: str) -> provider.ProviderOffer:
+    try:
+        return provider.get_offer(item.offer_id)
+    except provider.ProviderNotFound as exc:
+        raise ApiError(404, "NOT_FOUND", "The provider no longer offers this item.") from exc
+    except provider.ProviderError as exc:
+        raise map_provider_error(exc, _request_id(request), action) from exc
+
+
+def _item_or_404(session, trip_id: uuid.UUID, item_id: uuid.UUID) -> ItineraryItem:
+    item = next((i for i in list_items(session, trip_id) if i.id == item_id), None)
+    if item is None:
+        raise ApiError(404, "NOT_FOUND", "This item is not in the itinerary (it may already have been removed).")
+    return item
+
+
+@router.get("/trips/{trip_id}/itinerary/{item_id}/quote")
+def get_quote(trip_id: uuid.UUID, item_id: uuid.UUID, user: CurrentUser, session: SessionDep, request: Request) -> QuoteOut:
+    _require_editor(session, trip_id, user)
+    item = _item_or_404(session, trip_id, item_id)
+    offer = _fetch_offer(item, request, "price check")
+    now = datetime.now(timezone.utc)
+    saved = _terms(item.price_amount, item.currency, item.revision, item.available, item.valid_until, now)
+    current = _terms(Decimal(offer.price.amount), offer.price.currency, offer.revision, offer.available, offer.validUntil, now)
+
+    changes = []
+    if saved.price != current.price:
+        changes.append("price")
+    if saved.revision != current.revision:
+        changes.append("revision")
+    if saved.available != current.available:
+        changes.append("availability")
+    if current.expired:
+        changes.append("expired")
+    reason = None
+    if not current.available:
+        reason = "This offer is no longer available."
+    elif current.expired:
+        reason = "This quote has expired. Refresh the price to get a new quote."
+    return QuoteOut(
+        itemId=str(item.id), saved=saved, current=current, changes=changes, bookable=reason is None, reason=reason
+    )
+
+
+@router.post("/trips/{trip_id}/itinerary/{item_id}/refresh")
+def refresh_item(
+    trip_id: uuid.UUID, item_id: uuid.UUID, body: RefreshIn, user: CurrentUser, session: SessionDep, request: Request
+) -> ItineraryOut:
+    """Replace the saved price, revision, availability and quote expiry with the provider's current terms."""
+    trip, role = get_trip_for_user(session, trip_id, user)
+    require(can_edit(role), "You are not allowed to change this itinerary.")
+    if trip.version != body.version:
+        raise _conflict(session, trip_id, user)
+    item = _item_or_404(session, trip_id, item_id)
+    if live_attempt(session, item_id) is not None:
+        raise _booked()
+    offer = _fetch_offer(item, request, "price refresh")
+
+    _bump_version(session, trip_id, body.version, user)
+    locked = lock_item(session, trip_id, item_id)
+    if locked is None:
+        session.rollback()
+        raise ApiError(404, "NOT_FOUND", "This item is not in the itinerary (it may already have been removed).")
+    if live_attempt(session, item_id) is not None:
+        session.rollback()
+        raise _booked()
+    locked.price_amount = Decimal(offer.price.amount)
+    locked.currency = offer.price.currency
+    locked.revision = offer.revision
+    locked.available = offer.available
+    locked.valid_until = offer.validUntil
     return _finish(session, trip_id)

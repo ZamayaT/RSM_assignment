@@ -10,6 +10,19 @@ from decimal import Decimal
 
 STATUS_ESTIMATE = "estimate"
 STATUS_EXPIRED = "expired_quote"
+STATUS_BOOKING_PENDING = "booking_pending"
+STATUS_CONFIRMED = "confirmed"
+STATUS_FAILED = "failed"
+STATUS_UNKNOWN = "unknown"
+
+# Latest booking attempt status -> item status. A failed attempt leaves the item bookable again.
+_BOOKING_STATUS = {
+    "initiated": STATUS_BOOKING_PENDING,
+    "pending": STATUS_BOOKING_PENDING,
+    "unknown": STATUS_UNKNOWN,
+    "confirmed": STATUS_CONFIRMED,
+    "failed": STATUS_FAILED,
+}
 
 SCHEDULE_CONFLICT = "SCHEDULE_CONFLICT"
 MISSING_SCHEDULE = "MISSING_SCHEDULE"
@@ -31,6 +44,7 @@ class ItemFacts:
     ends_at: datetime | None
     price_amount: Decimal | None
     valid_until: datetime | None
+    booking: str | None = None  # status of the item's latest booking attempt, if any
 
 
 @dataclass(frozen=True)
@@ -78,8 +92,12 @@ def evaluate(items: list[ItemFacts], trip: TripFacts, now: datetime) -> dict[uui
     result: dict[uuid.UUID | str, Evaluation] = {}
     for item in items:
         ev = Evaluation()
-        if is_expired(item, now):
-            ev.status = STATUS_EXPIRED
+        if item.booking is not None:
+            ev.status = _BOOKING_STATUS[item.booking]
+        # A live booking has an accepted price, so its saved quote no longer matters.
+        if item.booking not in ("initiated", "pending", "unknown", "confirmed") and is_expired(item, now):
+            if item.booking is None:
+                ev.status = STATUS_EXPIRED
             ev.warnings.append(Warning(EXPIRED_QUOTE, "The quoted price has expired; it may have changed."))
         if not _has_schedule(item):
             ev.warnings.append(Warning(MISSING_SCHEDULE, "This item has no complete schedule."))

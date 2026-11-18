@@ -1,4 +1,5 @@
 """Provider client against a stubbed HTTP transport (no network, no database)."""
+import json
 import httpx
 import pytest
 
@@ -168,3 +169,108 @@ def test_get_offer_unknown_id_is_not_found():
 def test_get_offer_failures_are_typed(transport, error):
     with pytest.raises(error):
         provider.get_offer("o-1", transport)
+
+
+# ---- Bookings ----
+
+BOOKING = {
+    "id": "b-1",
+    "clientReference": "trip-1-item-1-abc",
+    "offer": {**OFFER, "restrictions": ["Non-refundable"]},
+    "status": "pending",
+    "createdAt": "2030-01-01T09:00:00Z",
+    "updatedAt": "2030-01-01T09:00:00Z",
+}
+PRICE = provider.Money(amount="120.00", currency="USD")
+
+
+def create(transport):
+    return provider.create_booking("trip-1-item-1-abc", "o-1", "r1", PRICE, "booking-intent-1", transport)
+
+
+def test_create_booking_sends_key_and_body_and_reports_new_vs_replay():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["key"] = request.headers["Idempotency-Key"]
+        seen["body"] = json.loads(request.read())
+        return httpx.Response(seen.get("status", 201), json=BOOKING)
+
+    created = create(stub(handler))
+    assert created.replayed is False and created.booking.status == "pending"
+    assert seen["key"] == "booking-intent-1"
+    assert seen["body"] == {
+        "clientReference": "trip-1-item-1-abc",
+        "offerId": "o-1",
+        "expectedOfferRevision": "r1",
+        "expectedPrice": {"amount": "120.00", "currency": "USD"},
+    }
+
+    seen["status"] = 200
+    assert create(stub(handler)).replayed is True
+
+
+def test_failed_booking_carries_failure():
+    failed = {**BOOKING, "status": "failed", "failure": {"code": "PAYMENT_DECLINED", "message": "Declined"}}
+    booking = create(respond(201, failed)).booking
+    assert booking.status == "failed" and booking.failure.code == "PAYMENT_DECLINED"
+
+
+@pytest.mark.parametrize(
+    "code, error",
+    [
+        ("OFFER_CHANGED", provider.ProviderOfferChanged),
+        ("OFFER_UNAVAILABLE", provider.ProviderOfferUnavailable),
+        ("REFERENCE_CONFLICT", provider.ProviderReferenceConflict),
+        ("IDEMPOTENCY_CONFLICT", provider.ProviderIdempotencyConflict),
+        ("SOMETHING_ELSE", provider.ProviderMalformedResponse),
+    ],
+)
+def test_create_booking_conflicts_are_typed(code, error):
+    with pytest.raises(error):
+        create(respond(409, {"code": code, "message": "x", "requestId": "r"}))
+
+
+@pytest.mark.parametrize(
+    "transport, error",
+    [
+        (respond(400, {"details": {"errors": [{"field": "body.offerId", "message": "bad"}]}}), provider.ProviderBadRequest),
+        (respond(429, {}, {"Retry-After": "2"}), provider.ProviderRateLimited),
+        (respond(503, {}), provider.ProviderUnavailable),
+        (respond(500, {}), provider.ProviderMalformedResponse),
+        (respond(201, {"id": "x"}), provider.ProviderMalformedResponse),
+        (respond(201, text="not json"), provider.ProviderMalformedResponse),
+    ],
+    ids=["400", "429", "503", "500", "wrong-shape", "not-json"],
+)
+def test_create_booking_failures_are_typed(transport, error):
+    with pytest.raises(error):
+        create(transport)
+
+
+def test_create_booking_timeout_and_unreachable():
+    def timeout(request):
+        raise httpx.ReadTimeout("slow")
+
+    def down(request):
+        raise httpx.ConnectError("refused")
+
+    with pytest.raises(provider.ProviderTimeout):
+        create(stub(timeout))
+    with pytest.raises(provider.ProviderUnreachable):
+        create(stub(down))
+
+
+def test_get_booking_and_by_reference_paths_and_not_found():
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.raw_path.decode())
+        return httpx.Response(200, json=BOOKING)
+
+    assert provider.get_booking("b/1", stub(handler)).id == "b-1"
+    assert provider.get_booking_by_reference("trip 1", stub(handler)).clientReference == "trip-1-item-1-abc"
+    assert seen[0].endswith("/bookings/b%2F1") and seen[1].endswith("/bookings/by-reference/trip%201")
+
+    with pytest.raises(provider.ProviderNotFound):
+        provider.get_booking_by_reference("x", respond(404, {"code": "NOT_FOUND"}))

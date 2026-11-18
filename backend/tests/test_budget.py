@@ -144,3 +144,7 @@ def test_read_access_follows_trip_membership(client):
         assert client.get(f"/trips/{trip['id']}/{path}", headers=login(client, "bob")).status_code == 200
         assert client.get(f"/trips/{trip['id']}/{path}", headers=login(client, "carol")).status_code == 404
         assert client.get(f"/trips/{trip['id']}/{path}").status_code == 401
+
+
+def test_budget_line_carries_status():
+    assert line("10.00").status == "estimate"
