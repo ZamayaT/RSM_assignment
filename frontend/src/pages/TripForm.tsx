@@ -1,8 +1,7 @@
-import { Alert, Autocomplete, Box, Button, CircularProgress, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Autocomplete, Button, CircularProgress, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 import { api, ApiError, type Trip } from "../api";
-
 interface FormValues {
   name: string;
   destinations: string[];
@@ -84,7 +83,7 @@ export default function TripForm() {
     try {
       // Success is only reported after the server confirmed the save.
       const saved = editing ? await api.updateTrip(id, input, version) : await api.createTrip(input);
-      navigate(`/trips/${saved.id}`, { state: { saved: true } });
+      navigate(`/trips/${saved.id}/itinerary`, { state: { saved: true } });
     } catch (e) {
       const error = e as ApiError;
       if (error.status === 400) {
@@ -107,21 +106,23 @@ export default function TripForm() {
     setConflict(null);
   }
 
-  if (loading) return <CircularProgress aria-label="Loading form" />;
+  const card = { borderRadius: "24px", p: { xs: 3, md: 5 }, maxWidth: 680, mx: "auto" };
+
+  if (loading) return <CircularProgress color="inherit" aria-label="Loading form" />;
   if (loadError)
     return (
-      <Box>
+      <Paper sx={card}>
         <Alert severity="error" sx={{ mb: 2 }}>{loadError}</Alert>
-        <Button component={RouterLink} to="/trips">Back to My trips</Button>
-      </Box>
+        <Button variant="contained" component={RouterLink} to="/trips">Back to My trips</Button>
+      </Paper>
     );
 
   const err = (field: string) => ({ error: field in fieldErrors, helperText: fieldErrors[field] });
 
   return (
-    <Box component="form" onSubmit={submit} noValidate sx={{ maxWidth: 560 }}>
-      <Typography variant="h5" gutterBottom>
-        {editing ? "Edit trip" : "Create trip"}
+    <Paper component="form" onSubmit={submit} noValidate sx={card}>
+      <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
+        {editing ? "Edit Trip" : "New Trip"}
       </Typography>
       <Stack spacing={2}>
         {conflict && (
@@ -192,11 +193,11 @@ export default function TripForm() {
           <Button type="submit" variant="contained" disabled={saving}>
             {saving ? "Saving…" : "Save"}
           </Button>
-          <Button component={RouterLink} to={editing ? `/trips/${id}` : "/trips"} disabled={saving}>
+          <Button variant="outlined" component={RouterLink} to={editing ? `/trips/${id}` : "/trips"} disabled={saving}>
             Cancel
           </Button>
         </Stack>
       </Stack>
-    </Box>
+    </Paper>
   );
 }

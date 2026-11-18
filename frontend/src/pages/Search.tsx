@@ -26,8 +26,8 @@ import {
   type SearchResult,
   type Trip,
 } from "../api";
-import ConflictDialog, { type PendingChange } from "../ConflictDialog";
-import { stamp } from "../format";
+import ConflictDialog, { type PendingChange } from "../ConflictDialog";import { stamp } from "../format";
+import { useTripWorkspace } from "../tripContext";
 
 type SortKey = "price" | "start" | "supplier";
 
@@ -67,6 +67,7 @@ export default function Search() {
   const [reapplying, setReapplying] = useState(false);
   const lastInput = useRef<SearchInput | null>(null);
   const latestRun = useRef(0);
+  const workspace = useTripWorkspace();
 
   useEffect(() => {
     Promise.all([api.getTrip(id), api.searchOptions(), api.itinerary(id)])
@@ -100,6 +101,7 @@ export default function Search() {
       syncItinerary(updated);
       setConflict(null);
       setNotes((n) => ({ ...n, [offer.id]: { ok: true, text: "Added to the itinerary." } }));
+      workspace.refresh();
     } catch (e) {
       const error = e as ApiError;
       if (error.status === 409 && error.latestState) {
@@ -165,41 +167,36 @@ export default function Search() {
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h5">Search — {trip.name}</Typography>
       <Alert severity="info">
         Results are estimates from suppliers. They are not bookings and prices are not guaranteed.
       </Alert>
 
-      <Box component="form" onSubmit={submit} noValidate sx={{ maxWidth: 640 }}>
+      <Box component="form" onSubmit={submit} noValidate>
         <Stack spacing={2}>
-          <Stack direction="row" spacing={2}>
+          {/* Fields fill the card's width: as many columns as fit, at least 200px each. */}
+          <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
             <TextField select label="Category" value={category} onChange={(e) => setCategory(e.target.value)} fullWidth {...err("category")}>
               {options.categories.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
             </TextField>
             <TextField select label="Destination" value={destination} onChange={(e) => setDestination(e.target.value)} fullWidth {...err("destination")}>
               {trip.destinations.map((d) => <MenuItem key={d} value={d}>{d}</MenuItem>)}
             </TextField>
-          </Stack>
-          {category === "transport" && (
-            <TextField select label="Origin" value={origin} onChange={(e) => setOrigin(e.target.value)} required {...err("origin")}>
-              {options.origins.map((o) => <MenuItem key={o} value={o}>{o}</MenuItem>)}
-            </TextField>
-          )}
-          <Stack direction="row" spacing={2}>
-            <TextField label="From" type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth {...err("startsOn")} />
-            <TextField label="To" type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth {...err("endsOn")} />
-          </Stack>
-          <Stack direction="row" spacing={2}>
-            <TextField label="Travelers" type="number" value={travelers} onChange={(e) => setTravelers(e.target.value)} fullWidth {...err("travelers")} />
+            {category === "transport" && (
+              <TextField select label="Origin" value={origin} onChange={(e) => setOrigin(e.target.value)} required fullWidth {...err("origin")}>
+                {options.origins.map((o) => <MenuItem key={o} value={o}>{o}</MenuItem>)}
+              </TextField>
+            )}
             <TextField select label="Supplier" value={providerId} onChange={(e) => setProviderId(e.target.value)} fullWidth {...err("providerId")}>
               <MenuItem value="">Any supplier</MenuItem>
               {options.suppliers.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
             </TextField>
-          </Stack>
+            <TextField label="From" type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth {...err("startsOn")} />
+            <TextField label="To" type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth {...err("endsOn")} />
+            <TextField label="Travelers" type="number" value={travelers} onChange={(e) => setTravelers(e.target.value)} fullWidth {...err("travelers")} />
+          </Box>
           <Stack direction="row" spacing={2}>
             <Button type="submit" variant="contained" disabled={loading}>{loading ? "Searching…" : "Search"}</Button>
-            <Button component={RouterLink} to={`/trips/${trip.id}/itinerary`}>View itinerary</Button>
-            <Button component={RouterLink} to={`/trips/${trip.id}`}>Back to trip</Button>
+            <Button variant="outlined" component={RouterLink} to={`/trips/${trip.id}/itinerary`}>View itinerary</Button>
           </Stack>
         </Stack>
       </Box>
@@ -268,7 +265,7 @@ export default function Search() {
                         {canEdit && (
                           <TableCell>
                             {added.has(o.id) ? (
-                              <Chip size="small" color="primary" label="In itinerary" />
+                              <Chip size="small" variant="outlined" label="In itinerary" />
                             ) : (
                               <Button
                                 size="small"

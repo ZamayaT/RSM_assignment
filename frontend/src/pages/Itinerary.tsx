@@ -5,6 +5,7 @@ import { api, ApiError, type BookingAttempt, type Itinerary as ItineraryData, ty
 import BookDialog from "../BookDialog";
 import ConflictDialog, { type PendingChange } from "../ConflictDialog";
 import { LIVE_ITEM_STATUSES, STATUS_LABELS, stamp } from "../format";
+import { useTripWorkspace } from "../tripContext";
 
 interface Notice {
   severity: "success" | "error" | "info";
@@ -20,6 +21,7 @@ export default function Itinerary() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [conflict, setConflict] = useState<{ change: PendingChange; latest: ItineraryData } | null>(null);
   const [booking, setBooking] = useState<ItineraryItem | null>(null);
+  const workspace = useTripWorkspace();
 
   // While a booking can still settle by itself, keep the labels fresh.
   const unsettled = itinerary?.items.some((i) => i.status === "booking_pending" || i.status === "unknown") ?? false;
@@ -42,6 +44,7 @@ export default function Itinerary() {
     };
     setNotice({ severity: attempt.status === "failed" ? "error" : attempt.status === "confirmed" ? "success" : "info", text: text[attempt.status] });
     api.itinerary(id).then(setItinerary).catch(() => undefined);
+    workspace.refresh();
   }
 
   useEffect(() => {
@@ -79,6 +82,7 @@ export default function Itinerary() {
       }
     } finally {
       setBusy(false);
+      workspace.refresh();
     }
   }
 
@@ -123,14 +127,6 @@ export default function Itinerary() {
 
   return (
     <Stack spacing={2}>
-      <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-        <Typography variant="h5" sx={{ flexGrow: 1 }}>Itinerary — {trip.name}</Typography>
-        <Button component={RouterLink} to={`/trips/${id}/bookings`}>Bookings</Button>
-        <Button component={RouterLink} to={`/trips/${id}/budget`}>Budget</Button>
-        {canEdit && <Button variant="contained" component={RouterLink} to={`/trips/${id}/search`}>Search</Button>}
-        <Button component={RouterLink} to={`/trips/${id}`}>Back to trip</Button>
-      </Stack>
-
       <Alert severity="info">
         <strong>How scheduling is checked (simplified).</strong> Times are compared as UTC instants. Two items conflict when
         their time ranges overlap (an end equal to the next start is fine); a stay may overlap activities and transport,
@@ -143,13 +139,22 @@ export default function Itinerary() {
 
       {items.length === 0 ? (
         <Alert severity="info">
-          The itinerary is empty.{canEdit ? " Use Search and “Add to itinerary” to plan the trip." : ""}
+          The itinerary is empty.
+          {canEdit && (
+            <>
+              {" "}Use the{" "}
+              <Button size="small" variant="outlined" color="inherit" component={RouterLink} to={`/trips/${id}/search`} sx={{ mx: 0.5 }}>
+                Search
+              </Button>{" "}
+              tab and “Add to itinerary” to plan the trip.
+            </>
+          )}
         </Alert>
       ) : (
         <Stack spacing={1.5}>
           {items.map((item, index) => (
-            <Paper key={item.id} variant="outlined" sx={{ p: 2 }}>
-              <Stack direction="row" spacing={2} sx={{ alignItems: "flex-start" }}>
+            <Paper key={item.id} variant="outlined" sx={{ p: 2, borderRadius: "16px", borderColor: "divider" }}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: { sm: "flex-start" } }}>
                 <Typography color="text.secondary" sx={{ minWidth: 24 }}>{index + 1}.</Typography>
                 <Box sx={{ flexGrow: 1 }}>
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
@@ -181,7 +186,7 @@ export default function Itinerary() {
                   ))}
                 </Box>
                 {canEdit && (
-                  <Stack direction="row" spacing={0.5}>
+                  <Stack direction="row" useFlexGap spacing={0.5} sx={{ flexWrap: "wrap" }}>
                     {!LIVE_ITEM_STATUSES.includes(item.status) && (
                       <>
                         <Button size="small" variant="contained" disabled={busy} onClick={() => setBooking(item)}>

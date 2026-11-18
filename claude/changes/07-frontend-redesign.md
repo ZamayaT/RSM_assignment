@@ -1,6 +1,6 @@
 # Change 07 — Frontend redesign
 
-Status: Proposed
+Status: In progress (implemented; manual browser pass 4.2 pending)
 
 ## Goal
 Apply the simple visual design in `RSM assignment simple design.pdf` to every view built so far, without losing any feature or behavior. One theme (Montserrat, a blue and orange palette) and three layouts: a full-screen **user selection**, a **My trips** card list, and a **trip workspace**. The workspace has a fixed general-info card on the left and a tabbed, scrollable section card on the right (Itinerary, Bookings, Budget, Participants and Search). Later views (Documents, Assistant) plug into the same layout as new tabs. This is frontend only: the backend, the API and all tests stay unchanged.
@@ -78,22 +78,22 @@ Everything below works today and must still work, for the same roles, after the 
 ## Tasks
 
 ### Theme and shell
-- [ ] 1.1 Add Montserrat (`@fontsource/montserrat`, weights 400/600/700) and `frontend/src/theme.ts` with the palette, typography and component overrides above (pill buttons/chips/tabs, rounded flat cards, readable secondary text, distinct status colors, visible focus and disabled styles); wrap the app in `ThemeProvider` in `main.tsx`.
-- [ ] 1.2 Header: dark-blue bar; the bold "Travel Planning Platform" title on the left is a link that signs out and returns to the user selection page; "My trips" link (orange when active) and the bold username (plain text) on the right. The "Switch user" button is removed. The header is hidden on the start page.
+- [x] 1.1 Add Montserrat (`@fontsource/montserrat`, weights 400/600/700) and `frontend/src/theme.ts` with the palette, typography and component overrides above (pill buttons/chips/tabs, rounded flat cards, readable secondary text, distinct status colors, visible focus and disabled styles); wrap the app in `ThemeProvider` in `main.tsx`.
+- [x] 1.2 Header: dark-blue bar; the bold "Travel Planning Platform" title on the left is a link that signs out and returns to the user selection page; "My trips" link (orange when active) and the bold username (plain text) on the right. The "Switch user" button is removed. The header is hidden on the start page.
 
 ### Pages
-- [ ] 2.1 User selection: full-screen dark-blue page, centered orange title, white subtitle "Select a user to sign in", seeded users as white rounded buttons in wrapped rows, error/retry and loading states, backend status line.
-- [ ] 2.2 My trips: one large card with "My Trips" and an orange "+ New Trip" pill; each trip is a mid-blue rounded row link (name, dates, role pill, destinations); restyled loading, error and empty states.
-- [ ] 2.3 Create/edit trip: the existing form inside one centered card in the new style; per-field validation, "saved" feedback and the conflict dialog keep working.
+- [x] 2.1 User selection: full-screen dark-blue page, centered orange title, white subtitle "Select a user to sign in", seeded users as white rounded buttons in wrapped rows, error/retry and loading states, backend status line.
+- [x] 2.2 My trips: one large card with "My Trips" and an orange "+ New Trip" pill; each trip is a mid-blue rounded row link (name, dates, role pill, destinations); restyled loading, error and empty states.
+- [x] 2.3 Create/edit trip: the existing form inside one centered card in the new style; per-field validation, "saved" feedback and the conflict dialog keep working.
 
 ### Trip workspace
-- [ ] 3.1 Workspace layout route for `/trips/:id`: trip context (trip, budget, itinerary, bookings, `refresh()`), left general-info card with "Edit Trip" for organizer/editor, pill tab bar (Itinerary, Bookings, Budget, Participants, Search) bound to the URL, right section card with its own scroll, redirect from `/trips/:id` to the Itinerary tab, and trip-level "not found"/error state. Remove the old `TripOverview` page.
-- [ ] 3.2 Move Itinerary, Bookings, Budget, Participants and Search into the section card: remove their duplicated title and navigation buttons, call `refresh()` after writes, and keep their loading, error, empty, conflict, polling and role-based states.
-- [ ] 3.3 Restyle the booking confirmation dialog, the conflict dialog, tables, status chips and alerts so they are readable on the dark surface, with differences highlighted by more than color alone.
-- [ ] 3.4 Narrow-screen fallback: the cards stack vertically and the page scrolls; tabs scroll horizontally if needed.
+- [x] 3.1 Workspace layout route for `/trips/:id`: trip context (trip, budget, itinerary, bookings, `refresh()`), left general-info card with "Edit Trip" for organizer/editor, pill tab bar (Itinerary, Bookings, Budget, Participants, Search) bound to the URL, right section card with its own scroll, redirect from `/trips/:id` to the Itinerary tab, and trip-level "not found"/error state. Remove the old `TripOverview` page.
+- [x] 3.2 Move Itinerary, Bookings, Budget, Participants and Search into the section card: remove their duplicated title and navigation buttons, call `refresh()` after writes, and keep their loading, error, empty, conflict, polling and role-based states.
+- [x] 3.3 Restyle the booking confirmation dialog, the conflict dialog, tables, status chips and alerts so they are readable on the dark surface, with differences highlighted by more than color alone.
+- [x] 3.4 Narrow-screen fallback: the cards stack vertically and the page scrolls; tabs scroll horizontally if needed.
 
 ### Documentation and checks
-- [ ] 4.1 Update `PROJECT.md`: section 4 (layout: user selection, My trips, trip workspace with tabs; Trip overview becomes the left card), section 8.1/8.2 (theme decision: Montserrat, palette, MUI theme), section 10 (insert this change as 7, renumber Documents to 8, MCP and assistant to 9, Delivery to 10) and rename the planned change files accordingly. Update `README.md` only if setup changed.
+- [x] 4.1 Update `PROJECT.md`: section 4 (layout: user selection, My trips, trip workspace with tabs; Trip overview becomes the left card), section 8.1/8.2 (theme decision: Montserrat, palette, MUI theme), section 10 (insert this change as 7, renumber Documents to 8, MCP and assistant to 9, Delivery to 10) and rename the planned change files accordingly. Update `README.md` only if setup changed.
 - [ ] 4.2 Manual pass in the browser with each role (organizer, editor, viewer, non-participant URL): go through the "Features to preserve" checklist item by item and every acceptance criterion of changes 2 to 6 in the new layout; report any item that could not be checked. Run `npm run build` (type check) and the backend test suite (`docker compose exec backend pytest`) to confirm nothing outside the frontend changed. Then `docker compose down`.
 
 ## Acceptance criteria
@@ -112,4 +112,16 @@ Everything below works today and must still work, for the same roles, after the 
 - On a narrow window everything stays reachable by scrolling.
 - `npm run build` succeeds; the backend tests pass unchanged; `assignment/` is untouched.
 
+## Implementation notes
+- The workspace context shares only `refresh()`. Each section still loads its own data exactly as before, so its loading, error and polling behavior is unchanged. While any booking can still change, the workspace also refreshes the left card every 5 s.
+- No planned change files existed beyond 06, so nothing needed renaming. `README.md` was updated where it described "Switch user".
+- Revisions after the first review (Confirmed (developer)):
+  - Alerts are filled: light status color with dark text, instead of the near-black dark-mode default.
+  - Every button has an em-based corner radius that scales with its size, and centered text.
+  - The Search form fills the card's width in a responsive grid.
+  - The tabs share the bar equally (they scroll on very narrow screens).
+  - `/` always shows the user selection (the home page), even with a stored session.
+  - A person icon sits above the username in the header (inline SVG, no icon dependency).- 4.2 status: `npm run build` passes and the backend suite passes (222 tests). The manual browser pass per role has not been done yet.
+
 ## Technologies implemented
+- **`@fontsource/montserrat`** (npm): self-hosted Montserrat font (weights 400/600/700) imported in `main.tsx`, so the font works offline inside Docker.

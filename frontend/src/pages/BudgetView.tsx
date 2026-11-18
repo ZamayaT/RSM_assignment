@@ -40,19 +40,16 @@ export default function BudgetView() {
 
   return (
     <Stack spacing={2}>
-      <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-        <Typography variant="h5" sx={{ flexGrow: 1 }}>Budget (USD)</Typography>
-        <Button component={RouterLink} to={`/trips/${id}/itinerary`}>Itinerary</Button>
-        <Button component={RouterLink} to={`/trips/${id}`}>Back to trip</Button>
-      </Stack>
-
       <Alert severity={over ? "error" : "success"}>
         {over ? `Over budget by ${remaining} USD.` : `${remaining} USD remaining of the ${budget.budget} USD budget.`}
       </Alert>
-
-      {budget.lines.length === 0 ? (
+      {budget.lines.length === 0 && (
         <Alert severity="info">No items yet. Add offers from Search to see their costs here.</Alert>
-      ) : (
+      )}
+
+      <Typography variant="body2" color="text.secondary">All amounts in USD.</Typography>
+
+      {budget.lines.length > 0 && (
         <Box sx={{ overflowX: "auto" }}>
           <Table size="small">
             <TableHead>

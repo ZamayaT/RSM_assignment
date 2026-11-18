@@ -15,6 +15,10 @@ export const STATUS_LABELS: Record<string, { label: string; color: "default" | "
 // An item with one of these statuses has a booking that blocks removing or re-pricing it.
 export const LIVE_ITEM_STATUSES = ["booking_pending", "unknown", "confirmed"];
 
+// A booking attempt whose outcome can still change on its own (pages keep refreshing it).
+export const isLiveAttempt = (a: { status: string; unresolved: boolean }): boolean =>
+  a.status === "initiated" || a.status === "pending" || (a.status === "unknown" && !a.unresolved);
+
 // A random id for one booking decision. Falls back when crypto.randomUUID is unavailable (non-secure context).
 export function newIntentId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();

@@ -49,9 +49,11 @@ The assignment asks for the committed AI development setup (agent rules, prompts
 
 Described from the organizer's standpoint (organizers see everything). Differences for other roles are noted at the end.
 
+**Layout (change 7).** Every page after login has a header with the "Travel Planning Platform" title, a "My trips" link and the username. A trip opens a **trip workspace**: on the left, a fixed general-info card (the trip overview, 4.4, with "Edit Trip"); on the right, a pill tab bar (Itinerary, Budget, Bookings, Search, Participants) above a section card that scrolls by itself. Each tab has its own URL (`/trips/:id/<section>`). Later views (Documents, Assistant) are added as new tabs. Visual style: Montserrat font, colors `#185075`, `#427ea6`, `#f57b31` and white (section 8.2).
+
 **4.1 User selection (start page)**
 - List of seeded test users; clicking one logs in as that user (no password).
-- The session token is kept in the browser; a "Switch user" action returns here.
+- The session token is kept in the browser; clicking the header title signs out and returns here.
 - Purpose: quickly demonstrate different roles and permission behavior.
 
 **4.2 My trips (home)**
@@ -63,7 +65,7 @@ Described from the organizer's standpoint (organizers see everything). Differenc
 - Validation errors are shown per field; nothing is reported as saved unless the save succeeded.
 - Saving uses the trip version; a conflicting save shows the conflict dialog (see 4.7).
 
-**4.4 Trip overview**
+**4.4 Trip overview** (the left card of the trip workspace)
 - Summary: dates, destinations, travelers, budget versus current total, remaining budget.
 - Counters and alerts: itinerary warnings (conflicts, expired prices, missing information), bookings by status, latest document status.
 - Navigation to the other trip views.
@@ -226,6 +228,7 @@ Rules that drive the design:
 | Login | Start page lists seeded users; selecting one logs in | Confirmed (developer) |
 | Testing | Reduced, prioritized scope (section 11) | Confirmed (developer) |
 | Frontend | React + Vite with MUI (Material UI) components | Confirmed (developer) |
+| Visual design | Montserrat, blue/orange palette, one MUI theme, trip workspace layout (change 7) | Confirmed (developer) |
 | MCP | Official Python `mcp` SDK, HTTP transport, mounted inside the backend | Confirmed (recommended) |
 | Background jobs | PostgreSQL-backed job table + worker process | Confirmed (recommended) |
 | Status updates | Polling | Confirmed (recommended) |
@@ -238,7 +241,14 @@ Rules that drive the design:
 ### 8.2 Details
 
 **Frontend: React + Vite + MUI**
-React keeps dynamic UI state (itinerary, conflicts, polling statuses) manageable; plain HTML/JS needs no build step but becomes error-prone with this many dynamic views. MUI (Material UI) provides the components (tables, forms, dialogs, alerts, chips for statuses) so no custom design work is needed; default theme with minimal customization.
+React keeps dynamic UI state (itinerary, conflicts, polling statuses) manageable; plain HTML/JS needs no build step but becomes error-prone with this many dynamic views. MUI (Material UI) provides the components (tables, forms, dialogs, alerts, chips for statuses).
+
+**Visual design (change 7)**
+A simple design reference: Montserrat (self-hosted with `@fontsource/montserrat`, so it works offline), dark blue `#185075` for the header and cards, mid blue `#427ea6` for the background, orange `#f57b31` for main actions and the active link, and white. All of it lives in one MUI theme (`frontend/src/theme.ts`, dark mode). Pages use theme tokens, not hard-coded colors. Rules:
+- Secondary text on blue is semi-transparent white.
+- Status colors (green, red, amber, light blue) stay distinct from the orange actions and always come with a text label.
+- Focus rings are visible, disabled actions look clearly disabled, and changed booking terms are marked by more than color.
+- Keeping every feature takes priority over matching the design exactly.
 
 **Login and test identities**
 Seeded users (e.g. `alice`, `bob`, `carol`). The start page lists them; selecting one calls a login endpoint that returns a token for that user. No passwords or registration. The same users are searchable by username when adding participants.
@@ -350,9 +360,10 @@ The PRD requires all 12 stories; there is no smaller official MVP. Each step is 
 | 4 | Search | Provider client, search endpoint, partial/empty/failed handling | Search |
 | 5 | Itinerary and budget | Items, ordering, warnings, budget calculations, conflict handling | Itinerary, Budget, conflict dialog |
 | 6 | Bookings | Quote refresh, booking attempts, idempotency, reconciliation in worker | Booking confirmation, Bookings |
-| 7 | Documents | Job table, worker, PDF, storage, checksum, history | Documents |
-| 8 | MCP and assistant | MCP tools, `LLMClient`, assistant loop, evaluations | Assistant |
-| 9 | Delivery | README, architecture note, demo walkthrough, AI usage note | Final consistency pass |
+| 7 | Frontend redesign | None | Theme, user selection, My trips, trip workspace (info card + tabs) for all existing views |
+| 8 | Documents | Job table, worker, PDF, storage, checksum, history | Documents (workspace tab) |
+| 9 | MCP and assistant | MCP tools, `LLMClient`, assistant loop, evaluations | Assistant (workspace tab) |
+| 10 | Delivery | README, architecture note, demo walkthrough, AI usage note | Final consistency pass |
 
 ## 11. Testing strategy (reduced scope)
 
@@ -394,4 +405,4 @@ Tools: `pytest` with `httpx`, PostgreSQL test database through Compose. Model-de
 
 ## 13. Open questions
 
-- **LLM provider (Pending).** The assignment supplies no API key. Until decided, everything is built as if a real model were used: an `LLMClient` interface configured by environment variables (`.env.example`), with MCP tools and the assistant loop fully working. Options: (1) scripted LLM for tests and demo, (2) free-tier hosted model or local model via Ollama, (3) reviewer supplies their own key. Possibly a question for the assignment authors. To be decided at change 8.
+- **LLM provider (Pending).** The assignment supplies no API key. Until decided, everything is built as if a real model were used: an `LLMClient` interface configured by environment variables (`.env.example`), with MCP tools and the assistant loop fully working. Options: (1) scripted LLM for tests and demo, (2) free-tier hosted model or local model via Ollama, (3) reviewer supplies their own key. Possibly a question for the assignment authors. To be decided at change 9.

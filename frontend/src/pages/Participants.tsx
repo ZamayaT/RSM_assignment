@@ -3,7 +3,6 @@ import {
   Autocomplete,
   Box,
   Button,
-  Chip,
   CircularProgress,
   MenuItem,
   Select,
@@ -14,6 +13,8 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
 import { api, ApiError, type Participant, type Trip } from "../api";
+import RoleChip from "../RoleChip";
+import { useTripWorkspace } from "../tripContext";
 
 const ASSIGNABLE = ["editor", "viewer"];
 
@@ -30,6 +31,7 @@ export default function Participants() {
   const [newRole, setNewRole] = useState("viewer");
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const workspace = useTripWorkspace();
 
   const load = useCallback(async () => {
     try {
@@ -93,6 +95,8 @@ export default function Participants() {
       return false;
     } finally {
       setBusy(false);
+      // A lost access or role change also shows in the general-info card.
+      workspace.refresh();
     }
   }
 
@@ -126,8 +130,7 @@ export default function Participants() {
   const existing = new Set(participants.map((p) => p.username));
 
   return (
-    <Stack spacing={2} sx={{ maxWidth: 640 }}>
-      <Typography variant="h5">Participants – {trip.name}</Typography>
+    <Stack spacing={2}>
       {!isOrganizer && <Alert severity="info">Only the organizer can add, change or remove participants.</Alert>}
       {notice && <Alert severity={notice.severity}>{notice.text}</Alert>}
 
@@ -188,14 +191,11 @@ export default function Participants() {
                 </Button>
               </>
             ) : (
-              <Chip label={p.role} />
+              <RoleChip role={p.role} />
             )}
           </Stack>
         ))}
       </Stack>
-      <Box>
-        <Button component={RouterLink} to={`/trips/${id}`}>Back to trip</Button>
-      </Box>
     </Stack>
   );
 }

@@ -16,7 +16,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
 import { api, ApiError, type BookingAttempt, type Bookings as BookingsData, type Trip } from "../api";
 import BookDialog from "../BookDialog";
-import { stamp } from "../format";
+import { isLiveAttempt, stamp } from "../format";
+import { useTripWorkspace } from "../tripContext";
 
 const POLL_MS = 3000;
 
@@ -27,10 +28,6 @@ const CHIP: Record<string, { label: string; color: "default" | "info" | "success
   failed: { label: "Failed", color: "error" },
   unknown: { label: "Unknown", color: "warning" },
 };
-
-// An attempt the page keeps refreshing: the outcome can still change on its own.
-const isLive = (a: BookingAttempt) =>
-  a.status === "initiated" || a.status === "pending" || (a.status === "unknown" && !a.unresolved);
 
 function explain(a: BookingAttempt): string {
   switch (a.status) {
@@ -60,6 +57,7 @@ export default function Bookings() {
   const [checking, setChecking] = useState<string | null>(null);
   const [retry, setRetry] = useState<{ id: string; title: string } | null>(null);
   const loading = useRef(false);
+  const workspace = useTripWorkspace();
 
   const reload = useCallback(async () => {
     if (loading.current) return;
@@ -80,7 +78,7 @@ export default function Bookings() {
   }, [id, reload]);
 
   // Keep updating while any attempt can still change; this also resumes after a page reload.
-  const anyLive = data?.attempts.some(isLive) ?? false;
+  const anyLive = data?.attempts.some(isLiveAttempt) ?? false;
   useEffect(() => {
     if (!anyLive) return;
     const timer = setInterval(() => void reload(), POLL_MS);
@@ -100,6 +98,7 @@ export default function Bookings() {
       setNotice((e as ApiError).message);
     } finally {
       setChecking(null);
+      workspace.refresh();
     }
   }
 
@@ -142,13 +141,6 @@ export default function Bookings() {
 
   return (
     <Stack spacing={2}>
-      <Stack direction="row" spacing={2} sx={{ alignItems: "center" }}>
-        <Typography variant="h5" sx={{ flexGrow: 1 }}>Bookings — {trip.name}</Typography>
-        <Button component={RouterLink} to={`/trips/${id}/itinerary`}>Itinerary</Button>
-        <Button component={RouterLink} to={`/trips/${id}/budget`}>Budget</Button>
-        <Button component={RouterLink} to={`/trips/${id}`}>Back to trip</Button>
-      </Stack>
-
       {summary && <Alert severity={summary.severity}>{summary.text}</Alert>}
       {notice && <Alert severity="info" onClose={() => setNotice(null)}>{notice}</Alert>}
 
@@ -192,7 +184,7 @@ export default function Bookings() {
                     {canEdit && (
                       <TableCell>
                         {(a.status === "initiated" || a.status === "pending" || a.status === "unknown") && (
-                          <Button size="small" disabled={checking === a.id} onClick={() => void check(a)}>
+                          <Button size="small" variant="outlined" disabled={checking === a.id} onClick={() => void check(a)}>
                             {checking === a.id ? "Checking…" : "Check again"}
                           </Button>
                         )}
@@ -201,7 +193,7 @@ export default function Bookings() {
                             <Button size="small" variant="contained" onClick={() => setRetry({ id: a.itemId, title: a.itemTitle })}>
                               Retry
                             </Button>
-                            <Button size="small" component={RouterLink} to={`/trips/${id}/search`}>
+                            <Button size="small" variant="outlined" component={RouterLink} to={`/trips/${id}/search`}>
                               Choose another offer
                             </Button>
                           </Stack>
@@ -224,6 +216,7 @@ export default function Bookings() {
           onBooked={() => {
             setRetry(null);
             void reload();
+            workspace.refresh();
           }}
         />
       )}

@@ -1,4 +1,4 @@
-import { Alert, CircularProgress } from "@mui/material";
+import { Box, CircularProgress, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { BACKEND_URL } from "./config";
 
@@ -18,7 +18,12 @@ export default function BackendStatus() {
     return () => controller.abort();
   }, []);
 
-  if (state === "loading") return <CircularProgress aria-label="Checking backend" />;
-  if (state === "ok") return <Alert severity="success">Backend status: ok</Alert>;
-  return <Alert severity="error">Backend status: unreachable</Alert>;
+  if (state === "loading") return <CircularProgress size={20} color="inherit" aria-label="Checking backend" />;
+  const ok = state === "ok";
+  return (
+    <Typography variant="body2" role="status" sx={{ display: "flex", alignItems: "center", gap: 1, color: "text.secondary" }}>
+      <Box component="span" sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: ok ? "success.main" : "error.main" }} />
+      Backend status: {ok ? "ok" : "unreachable"}
+    </Typography>
+  );
 }
