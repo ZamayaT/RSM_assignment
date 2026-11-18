@@ -21,6 +21,9 @@ Repository: RSM_assignment. Lightweight, change-driven workflow. No extra framew
 6. **README**: `README.md` documents only what is already implemented. If a task changes setup, installation, requirements, configuration, ports, or run/test commands, update `README.md` in that same task (simple step description + copy-paste command). Never document planned features there.
 7. Out-of-scope issues found along the way: mention them in one line; do not fix them.
 
+## Assignment Folder
+- `assignment/` is read-only reference material. Never modify, copy, move, or delete its files, and never make the application or mock read them at runtime.
+
 ## Token Efficiency
 - Read only files relevant to the current task. Use Grep/Glob to locate code before reading; read line ranges for large files.
 - Do not re-read `PROJECT.md` or re-analyze the project/codebase unless the task requires it or it changed.

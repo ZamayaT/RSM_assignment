@@ -12,4 +12,4 @@ COPY . .
 
 EXPOSE 4010
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "4010"]
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 4010"]

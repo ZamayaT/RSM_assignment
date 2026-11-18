@@ -74,7 +74,12 @@ With the services running (in another terminal):
 
 ```bash
 docker compose exec backend pytest
+docker compose exec mock_provider pytest
 ```
+
+The provider mock stores its data in its own PostgreSQL schema (`mock_provider`) and applies its migrations automatically when its container starts. On startup it also loads its fixture offers (Lisbon, Paris, Rome) if there are none.
+
+The mock's clock follows real time by default. To freeze it or shift it, uncomment `MOCK_CLOCK_FROZEN_AT` (for example `2030-01-15T09:00:00Z`) or `MOCK_CLOCK_OFFSET_SECONDS` in `.env`, then run `docker compose up -d mock_provider`. Fixture dates are generated relative to the clock when they are first loaded.
 
 ## 8. Stop and reset
 

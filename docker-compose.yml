@@ -26,8 +26,12 @@ services:
 
   mock_provider:
     build: ./mock_provider
+    env_file: .env
     ports:
       - "${MOCK_PROVIDER_PORT:-4010}:4010"
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
