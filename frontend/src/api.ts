@@ -31,6 +31,13 @@ export interface TripInput {
   notes: string | null;
 }
 
+export interface Participant {
+  userId: string;
+  username: string;
+  displayName: string;
+  role: string;
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -95,6 +102,7 @@ async function request<T>(path: string, method = "GET", body?: unknown): Promise
     throw new ApiError(0, "NETWORK", "Cannot reach the server. Please try again.");
   }
 
+  if (response.status === 204) return undefined as T;
   if (response.ok) return (await response.json()) as T;
 
   let data: { code?: string; message?: string; details?: { fields?: Record<string, string>; latest?: Trip } } = {};
@@ -122,4 +130,12 @@ export const api = {
   createTrip: (input: TripInput) => request<Trip>("/trips", "POST", input),
   updateTrip: (id: string, input: TripInput, version: number) =>
     request<Trip>(`/trips/${id}`, "PUT", { ...input, version }),
+  searchUsers: (query: string) => request<User[]>(`/users?query=${encodeURIComponent(query)}`),
+  listParticipants: (tripId: string) => request<Participant[]>(`/trips/${tripId}/participants`),
+  addParticipant: (tripId: string, username: string, role: string) =>
+    request<Participant>(`/trips/${tripId}/participants`, "POST", { username, role }),
+  changeRole: (tripId: string, userId: string, role: string) =>
+    request<Participant>(`/trips/${tripId}/participants/${userId}`, "PUT", { role }),
+  removeParticipant: (tripId: string, userId: string) =>
+    request<void>(`/trips/${tripId}/participants/${userId}`, "DELETE"),
 };

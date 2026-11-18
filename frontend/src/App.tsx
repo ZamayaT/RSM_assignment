@@ -1,6 +1,7 @@
 import { AppBar, Button, Container, Toolbar, Typography } from "@mui/material";
 import { Link as RouterLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { RequireUser, SessionProvider, useSession } from "./session";
+import Participants from "./pages/Participants";
 import TripForm from "./pages/TripForm";
 import TripOverview from "./pages/TripOverview";
 import TripsList from "./pages/TripsList";
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/trips" element={<RequireUser><TripsList /></RequireUser>} />
           <Route path="/trips/new" element={<RequireUser><TripForm /></RequireUser>} />
           <Route path="/trips/:id" element={<RequireUser><TripOverview /></RequireUser>} />
+          <Route path="/trips/:id/participants" element={<RequireUser><Participants /></RequireUser>} />
           <Route path="/trips/:id/edit" element={<RequireUser><TripForm /></RequireUser>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

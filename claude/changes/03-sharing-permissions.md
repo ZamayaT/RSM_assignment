@@ -42,14 +42,14 @@ An organizer can add other users to a trip as editor or viewer, change their rol
 - [x] 2.4 `PUT /trips/{id}/participants/{userId}` and `DELETE /trips/{id}/participants/{userId}`: organizer only; the organizer row is protected.
 
 ### Frontend
-- [ ] 3.1 API client calls, Participants route (`/trips/:id/participants`), read-only list of participants with roles, and a "Participants" link on the trip overview.
-- [ ] 3.2 Organizer controls: search users by username, add as editor or viewer, change role, remove; errors shown next to the field or as a message; changes appear only after the server confirmed them.
-- [ ] 3.3 Role-aware behavior: controls hidden for editors and viewers; a clear message when access was lost (`404`) or the action is no longer allowed (`403`), with a link back to My trips.
+- [x] 3.1 API client calls, Participants route (`/trips/:id/participants`), read-only list of participants with roles, and a "Participants" link on the trip overview.
+- [x] 3.2 Organizer controls: search users by username, add as editor or viewer, change role, remove; errors shown next to the field or as a message; changes appear only after the server confirmed them.
+- [x] 3.3 Role-aware behavior: controls hidden for editors and viewers; a clear message when access was lost (`404`) or the action is no longer allowed (`403`), with a link back to My trips.
 
 ### Tests and documentation
-- [ ] 4.1 Participants tests: list, add (editor/viewer), duplicate `409`, unknown user `400`, invalid role `400`, change role, remove, organizer protected, user search (auth required, limit, public fields only).
-- [ ] 4.2 Permission tests: viewer `403` on `PUT /trips/{id}` and on all participant changes; editor can edit the trip but gets `403` on participant changes; non-participant `404` on trip and participant endpoints; role changes and removal take effect immediately; a removed user no longer lists the trip.
-- [ ] 4.3 Update `README.md`: how to share a trip and try the roles with the seeded users (only what is implemented).
+- [x] 4.1 Participants tests: list, add (editor/viewer), duplicate `409`, unknown user `400`, invalid role `400`, change role, remove, organizer protected, user search (auth required, limit, public fields only).
+- [x] 4.2 Permission tests: viewer `403` on `PUT /trips/{id}` and on all participant changes; editor can edit the trip but gets `403` on participant changes; non-participant `404` on trip and participant endpoints; role changes and removal take effect immediately; a removed user no longer lists the trip.
+- [x] 4.3 Update `README.md`: how to share a trip and try the roles with the seeded users (only what is implemented).
 
 ## Acceptance criteria
 - In the browser: as `alice` create a trip, add `bob` as viewer and `carol` as editor; as `bob` see the trip in My trips, open it, and find no way to edit or manage participants; as `carol` edit the trip but see the participants read-only; as `alice` change `bob` to editor and remove `carol`; `carol` no longer sees the trip.

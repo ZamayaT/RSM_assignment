@@ -70,6 +70,8 @@ The start page lists the seeded test users (`alice`, `bob`, `carol`). The backen
 
 To log in, click a name. From there you can create a trip (name, destinations Lisbon/Paris/Rome, dates, travelers, budget in USD, notes), see it under **My trips**, open it, and edit it. Use **Switch user** in the top bar to log in as someone else: each user sees only their own trips. If two people edit the same trip, the second save is refused with a "changed by someone else" message and nothing is overwritten; click **Reload latest** to continue from the newest version. Your login is kept in the browser, so a page reload keeps you signed in.
 
+To share a trip, open it and click **Participants**. As the organizer, type a username (suggestions appear as you type), choose **editor** or **viewer**, and click **Add**. You can also change a participant's role or remove them. To try the roles, add `bob` as viewer and `carol` as editor, then use **Switch user**: a viewer can read the trip but not edit it, an editor can edit the trip but sees the participants read-only, and a user who is not on the trip (or was removed) does not see it. The backend enforces these rules, not only the screens.
+
 The API endpoints are listed and can be tried at http://localhost:8000/docs.
 
 ## 7. Run the tests
