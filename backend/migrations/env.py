@@ -2,6 +2,7 @@ from logging.config import fileConfig
 
 from alembic import context
 
+from app import models  # noqa: F401  (registers the tables on Base.metadata)
 from app.config import get_settings
 from app.db import Base, get_engine
 
@@ -10,7 +11,6 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Import model modules here so their tables are registered on Base.metadata.
 target_metadata = Base.metadata
 
 
