@@ -19,11 +19,19 @@ _CODES = {
 class ApiError(Exception):
     """Raise anywhere in a handler or dependency to return the standard error body."""
 
-    def __init__(self, status_code: int, code: str, message: str, details: dict | None = None):
+    def __init__(
+        self,
+        status_code: int,
+        code: str,
+        message: str,
+        details: dict | None = None,
+        headers: dict[str, str] | None = None,
+    ):
         self.status_code = status_code
         self.code = code
         self.message = message
         self.details = details
+        self.headers = headers
 
 
 def _request_id(request: Request) -> str:
@@ -31,10 +39,15 @@ def _request_id(request: Request) -> str:
 
 
 def error_response(
-    request: Request, status_code: int, code: str, message: str, details: dict | None = None
+    request: Request,
+    status_code: int,
+    code: str,
+    message: str,
+    details: dict | None = None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     body = {"code": code, "message": message, "requestId": _request_id(request), "details": details}
-    headers = {"WWW-Authenticate": "Bearer"} if status_code == 401 else None
+    headers = headers or ({"WWW-Authenticate": "Bearer"} if status_code == 401 else None)
     return JSONResponse(body, status_code=status_code, headers=headers)
 
 
@@ -48,7 +61,7 @@ def install_error_handling(app: FastAPI) -> None:
 
     @app.exception_handler(ApiError)
     async def api_error_handler(request: Request, exc: ApiError):
-        return error_response(request, exc.status_code, exc.code, exc.message, exc.details)
+        return error_response(request, exc.status_code, exc.code, exc.message, exc.details, exc.headers)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error_handler(request: Request, exc: RequestValidationError):

@@ -56,6 +56,7 @@ export default function TripOverview() {
       <Row label="Budget (USD)" value={trip.budget} />
       {trip.notes && <Row label="Notes" value={trip.notes} />}
       <Stack direction="row" spacing={2}>
+        <Button variant="contained" component={RouterLink} to={`/trips/${trip.id}/search`}>Search</Button>
         <Button component={RouterLink} to={`/trips/${trip.id}/participants`}>Participants</Button>
         <Button component={RouterLink} to="/trips">Back to My trips</Button>
       </Stack>

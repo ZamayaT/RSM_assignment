@@ -38,6 +38,46 @@ export interface Participant {
   role: string;
 }
 
+export interface SearchOptions {
+  categories: string[];
+  origins: string[];
+  suppliers: string[];
+}
+
+export interface SearchInput {
+  category: string;
+  destination: string;
+  origin?: string;
+  startsOn?: string;
+  endsOn?: string;
+  travelers?: number;
+  providerId?: string;
+}
+
+export interface Offer {
+  id: string;
+  providerId: string;
+  category: string;
+  title: string;
+  description: string;
+  destination: string;
+  origin: string | null;
+  startsAt: string;
+  endsAt: string;
+  travelers: number;
+  price: { amount: string; currency: string };
+  revision: string;
+  available: boolean;
+  validUntil: string;
+}
+
+export interface SearchResult {
+  state: "complete" | "partial" | "empty";
+  offers: Offer[];
+  warnings: { providerId: string; code: string; message: string }[];
+  searchedAt: string;
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -130,6 +170,8 @@ export const api = {
   createTrip: (input: TripInput) => request<Trip>("/trips", "POST", input),
   updateTrip: (id: string, input: TripInput, version: number) =>
     request<Trip>(`/trips/${id}`, "PUT", { ...input, version }),
+  searchOptions: () => request<SearchOptions>("/search/options"),
+  search: (tripId: string, input: SearchInput) => request<SearchResult>(`/trips/${tripId}/search`, "POST", input),
   searchUsers: (query: string) => request<User[]>(`/users?query=${encodeURIComponent(query)}`),
   listParticipants: (tripId: string) => request<Participant[]>(`/trips/${tripId}/participants`),
   addParticipant: (tripId: string, username: string, role: string) =>

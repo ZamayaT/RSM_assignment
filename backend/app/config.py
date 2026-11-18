@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     # Browser origin allowed to call the API (CORS).
     frontend_origin: str = "http://localhost:5173"
 
+    # Provider (mock) reached over HTTP.
+    provider_base_url: str = "http://mock_provider:4010/v1"
+    provider_token: str = "travel-demo-token"
+    provider_timeout_seconds: float = 5
+
     @property
     def database_url(self) -> URL:
         # URL.create escapes special characters in credentials.

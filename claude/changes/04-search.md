@@ -34,21 +34,21 @@ A participant of a trip can search transport, accommodation, and activities thro
 ## Tasks
 
 ### Provider client
-- [ ] 1.1 Settings (`PROVIDER_BASE_URL`, `PROVIDER_TOKEN`, `PROVIDER_TIMEOUT_SECONDS`) and a provider client module: search call with bearer token and timeout, typed result (offers, partial, warnings, searchedAt) and typed errors for 400, 429, 503, timeout, unreachable, and malformed responses.
-- [ ] 1.2 `GET /search/options` (categories, origins, suppliers) from one constants module.
+- [x] 1.1 Settings (`PROVIDER_BASE_URL`, `PROVIDER_TOKEN`, `PROVIDER_TIMEOUT_SECONDS`) and a provider client module: search call with bearer token and timeout, typed result (offers, partial, warnings, searchedAt) and typed errors for 400, 429, 503, timeout, unreachable, and malformed responses.
+- [x] 1.2 `GET /search/options` (categories, origins, suppliers) from one constants module.
 
 ### Search endpoint
-- [ ] 2.1 `POST /trips/{id}/search`: participant check (`404` otherwise), validation and defaults, call through the provider client, state `complete` / `partial` / `empty` with offers and per-supplier warnings.
-- [ ] 2.2 Failure mapping for the cases above (standard error body, codes and statuses as listed), provider request ids and timings logged.
+- [x] 2.1 `POST /trips/{id}/search`: participant check (`404` otherwise), validation and defaults, call through the provider client, state `complete` / `partial` / `empty` with offers and per-supplier warnings.
+- [x] 2.2 Failure mapping for the cases above (standard error body, codes and statuses as listed), provider request ids and timings logged.
 
 ### Frontend
-- [ ] 3.1 API calls, Search route `/trips/:id/search` and a "Search" link on the trip overview; form with category, destination (the trip's), origin (transport only), date window and travelers prefilled from the trip, optional supplier; per-field errors from the backend.
-- [ ] 3.2 Results and states: loading indicator, results table (title, supplier, schedule, price in USD, availability, restrictions text from the description, "searched at" and "quote valid until"), sorting, a permanent "estimates, not bookings" notice, partial warning per supplier with the results kept, empty message, failed message with a "Try again" action.
+- [x] 3.1 API calls, Search route `/trips/:id/search` and a "Search" link on the trip overview; form with category, destination (the trip's), origin (transport only), date window and travelers prefilled from the trip, optional supplier; per-field errors from the backend.
+- [x] 3.2 Results and states: loading indicator, results table (title, supplier, schedule, price in USD, availability, restrictions text from the description, "searched at" and "quote valid until"), sorting, a permanent "estimates, not bookings" notice, partial warning per supplier with the results kept, empty message, failed message with a "Try again" action.
 
 ### Tests and documentation
-- [ ] 4.1 Provider client tests with a stubbed transport: success, `partial`, `400`, `429` with `Retry-After`, `503`, timeout, unreachable, malformed body.
-- [ ] 4.2 Search endpoint tests against the real mock: complete and empty results per category, defaults from the trip, unknown destination and missing origin (`400`), unknown supplier, partial result with one supplier down (offers kept, warning present), all suppliers down (`503`), rate limited (`429`), viewer allowed, non-participant `404`, no login `401`, mock reset after each test.
-- [ ] 4.3 Update `README.md`: how to run a search in the browser, how to try a partial and a failed search with the mock's control commands (copy-paste), and that the search tests need the mock running (only what is implemented).
+- [x] 4.1 Provider client tests with a stubbed transport: success, `partial`, `400`, `429` with `Retry-After`, `503`, timeout, unreachable, malformed body.
+- [x] 4.2 Search endpoint tests against the real mock: complete and empty results per category, defaults from the trip, unknown destination and missing origin (`400`), unknown supplier, partial result with one supplier down (offers kept, warning present), all suppliers down (`503`), rate limited (`429`), viewer allowed, non-participant `404`, no login `401`, mock reset after each test.
+- [x] 4.3 Update `README.md`: how to run a search in the browser, how to try a partial and a failed search with the mock's control commands (copy-paste), and that the search tests need the mock running (only what is implemented).
 
 ## Acceptance criteria
 - In the browser: open a trip, click Search, search accommodation for one of its destinations and see offers with price, schedule, availability, "searched at", "quote valid until", and the "estimates" notice; sort the table.
@@ -60,4 +60,4 @@ A participant of a trip can search transport, accommodation, and activities thro
 - `assignment/` is untouched.
 
 ## Technologies implemented
-(To be filled as tasks are completed.)
+- `httpx` (already in `requirements.txt`): backend HTTP client for the provider search (`app/provider_client.py`).
