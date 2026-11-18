@@ -168,8 +168,13 @@ export default function Itinerary() {
                     {item.origin ? ` (from ${item.origin})` : ""} · {stamp(item.startsAt)} → {stamp(item.endsAt)}
                   </Typography>
                   <Typography variant="body2">
-                    {item.price ? `≈ ${item.price.amount} ${item.price.currency}` : "No price"} · {item.providerId} · quote valid
-                    until {stamp(item.validUntil)}
+                    {item.acceptedPrice
+                      ? `Booked at ${item.acceptedPrice.amount} ${item.acceptedPrice.currency} (accepted price)`
+                      : item.price
+                        ? `≈ ${item.price.amount} ${item.price.currency}`
+                        : "No price"}{" "}
+                    · {item.providerId}
+                    {item.acceptedPrice ? "" : ` · quote valid until ${stamp(item.validUntil)}`}
                   </Typography>
                   {item.warnings.map((w, n) => (
                     <Alert key={n} severity="warning" sx={{ mt: 1, py: 0 }}>{w.message}</Alert>

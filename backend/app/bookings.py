@@ -262,6 +262,11 @@ class BookIn(BaseModel):
     expectedPrice: MoneyIn
 
 
+def new_reference(trip_id: uuid.UUID, item_id: uuid.UUID) -> str:
+    """The caller's reference for one booking decision (unique; the provider keeps it for the dataset's lifetime)."""
+    return f"trip-{trip_id}-item-{item_id}-{uuid.uuid4().hex[:8]}"
+
+
 def _exists(attempt: BookingAttempt, title: str) -> ApiError:
     return ApiError(
         409,
@@ -304,7 +309,7 @@ def create_booking(
         session.rollback()
         raise error
 
-    reference = f"trip-{trip_id}-item-{item.id}-{uuid.uuid4().hex[:8]}"
+    reference = new_reference(trip_id, item.id)
     attempt = BookingAttempt(
         trip_id=trip_id,
         item_id=item.id,

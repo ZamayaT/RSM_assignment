@@ -1,6 +1,6 @@
 # Change 06 — Bookings
 
-Status: Approved
+Status: Complete
 
 ## Goal
 An organizer or editor can book an itinerary item after seeing its current terms and explicitly confirming them. The booking never creates duplicates, even when the user retries or the response is lost; its outcome is always one of pending, confirmed, failed or unknown, and an unknown outcome is settled through the provider contract (never guessed). Confirmed bookings keep the accepted offer and price, feed the budget as confirmed costs, and stay visible with explained next steps when other items fail. Covers FR-21 to FR-29, FR-17 and the "Booking confirmation" and "Bookings" views, the item status labels and "refresh price" of the Itinerary view, and the first use of the background worker.

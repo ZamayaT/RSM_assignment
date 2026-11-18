@@ -12,7 +12,7 @@ from app.auth import CurrentUser
 from app.bookings import latest_attempts, live_attempt, lock_item
 from app.errors import ApiError
 from app.itinerary_rules import ItemFacts, TripFacts, evaluate
-from app.models import ItineraryItem, Trip
+from app.models import BOOKING_CONFIRMED, ItineraryItem, Trip
 from app.search import map_provider_error
 from app.trips import SessionDep, _trip_out, can_edit, can_read, get_trip_for_user, require
 
@@ -42,6 +42,7 @@ class ItemOut(BaseModel):
     endsAt: datetime | None
     travelers: int
     price: Price | None
+    acceptedPrice: Price | None  # the provider's accepted price once the item's booking is confirmed
     revision: str
     available: bool
     validUntil: datetime | None
@@ -63,6 +64,12 @@ def list_items(session, trip_id: uuid.UUID) -> list[ItineraryItem]:
             .order_by(ItineraryItem.position, ItineraryItem.added_at)
         )
     )
+
+
+def _accepted_price(attempt) -> Price | None:
+    if attempt is None or attempt.status != BOOKING_CONFIRMED or attempt.accepted_amount is None:
+        return None
+    return Price(amount=f"{attempt.accepted_amount:.2f}", currency=attempt.currency)
 
 
 def itinerary_out(trip, items: list[ItineraryItem], attempts: dict) -> ItineraryOut:
@@ -92,6 +99,7 @@ def itinerary_out(trip, items: list[ItineraryItem], attempts: dict) -> Itinerary
                 endsAt=i.ends_at,
                 travelers=i.travelers,
                 price=None if i.price_amount is None else Price(amount=f"{i.price_amount:.2f}", currency=i.currency),
+                acceptedPrice=_accepted_price(attempts.get(i.id)),
                 revision=i.revision,
                 available=i.available,
                 validUntil=i.valid_until,
@@ -315,6 +323,7 @@ class QuoteOut(BaseModel):
     saved: Terms
     current: Terms
     changes: list[Literal["price", "revision", "availability", "expired"]]
+    description: str  # the provider's current description; the mock states its conditions there
     bookable: bool
     reason: str | None
 
@@ -369,7 +378,13 @@ def get_quote(trip_id: uuid.UUID, item_id: uuid.UUID, user: CurrentUser, session
     elif current.expired:
         reason = "This quote has expired. Refresh the price to get a new quote."
     return QuoteOut(
-        itemId=str(item.id), saved=saved, current=current, changes=changes, bookable=reason is None, reason=reason
+        itemId=str(item.id),
+        saved=saved,
+        current=current,
+        changes=changes,
+        description=offer.description,
+        bookable=reason is None,
+        reason=reason,
     )
 
 

@@ -83,6 +83,9 @@ export default function BookDialog({ tripId, item, onClose, onBooked }: Props) {
               </Alert>
             )}
             {quote.reason && <Alert severity="error" sx={{ mb: 1 }}>{quote.reason}</Alert>}
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              <strong>Conditions:</strong> {quote.description} Simulated booking: no payment, cancellation or refund.
+            </Typography>
             <Table size="small">
               <TableHead>
                 <TableRow>

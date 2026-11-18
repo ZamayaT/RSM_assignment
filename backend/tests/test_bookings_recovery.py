@@ -2,9 +2,12 @@
 import uuid
 
 import httpx
+import pytest
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app import bookings as bookings_module
+from app import provider_client as provider
 from app.db import get_engine
 from app.models import BookingAttempt
 from app.worker import process_next_due, run_once
@@ -220,3 +223,30 @@ def test_an_attempt_being_processed_is_skipped_by_another_worker(client, no_wait
         holder.execute(text("SELECT id FROM booking_attempts WHERE next_check_at IS NOT NULL FOR UPDATE"))
         assert process_next_due() is False
     assert process_next_due() is True
+
+
+def test_provider_conflicts_on_reference_and_key_are_typed_errors_against_the_real_mock(client):
+    headers, trip_id, offer, item = fresh_item(client)
+    price = provider.Money(**item["price"])
+    reference = f"conflict-test-{uuid.uuid4().hex[:8]}"
+    provider.create_booking(reference, offer["id"], item["revision"], price, "key-one")
+
+    with pytest.raises(provider.ProviderReferenceConflict):  # same reference, new key
+        provider.create_booking(reference, offer["id"], item["revision"], price, "key-two")
+    with pytest.raises(provider.ProviderIdempotencyConflict):  # same key, different body
+        provider.create_booking(f"{reference}-b", offer["id"], item["revision"], price, "key-one")
+
+
+def test_reference_conflict_is_unknown_then_settled_by_reference_never_guessed(client, no_waiting, monkeypatch):
+    headers, trip_id, offer, item = fresh_item(client)
+    reference = f"trip-{trip_id}-item-{item['id']}-collide1"
+    monkeypatch.setattr(bookings_module, "new_reference", lambda *_: reference)
+    # The provider already holds an accepted booking under this reference (sent with another key).
+    provider.create_booking(reference, offer["id"], item["revision"], provider.Money(**item["price"]), "other-key")
+
+    attempt = book_request(client, headers, trip_id, item).json()
+
+    assert attempt["status"] == "unknown"  # a conflict proves nothing about this request: not failed, not confirmed
+    run_once()
+    settled = latest_attempt(client, headers, trip_id)
+    assert settled["status"] == "confirmed" and settled["providerBookingId"] == provider_booking(reference)["id"]

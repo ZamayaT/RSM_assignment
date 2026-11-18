@@ -1,6 +1,6 @@
 # Change 02 — Users and trips
 
-Status: Approved
+Status: Complete
 
 ## Goal
 Seeded test users who can "log in" by selecting a name, and trips that a logged-in user can create, list, view, and edit, with validation, versioning (optimistic locking), and persistence. First visible vertical slice: backend, its frontend views, and tests together.

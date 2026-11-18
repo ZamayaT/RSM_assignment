@@ -1,6 +1,6 @@
 # Change 04 — Search
 
-Status: Draft, awaiting developer approval
+Status: Complete
 
 ## Goal
 A participant of a trip can search transport, accommodation, and activities through the provider mock (over HTTP only) and compare the results. The search clearly shows whether it was complete, partial (with a warning per failed supplier, keeping the successful results), empty, or failed, and never presents offers as booked or guaranteed. Covers FR-08 to FR-10 and the "Search" view.

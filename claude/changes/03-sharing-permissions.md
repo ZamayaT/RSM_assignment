@@ -1,6 +1,6 @@
 # Change 03 — Sharing and permissions
 
-Status: Approved
+Status: Complete
 
 ## Goal
 An organizer can add other users to a trip as editor or viewer, change their role, and remove them. The role of each participant is enforced by the backend on every trip request, and the Participants view shows it in the browser. Covers FR-04 to FR-07 for the endpoints that exist so far (trips); later changes reuse the same permission helpers.
@@ -58,4 +58,4 @@ An organizer can add other users to a trip as editor or viewer, change their rol
 - `assignment/` is untouched.
 
 ## Technologies implemented
-(To be filled as tasks are completed.)
+None: no new applications or dependencies were added in this change.

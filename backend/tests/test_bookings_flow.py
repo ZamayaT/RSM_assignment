@@ -72,6 +72,9 @@ def test_price_changed_before_booking_is_a_recorded_failure_and_nothing_is_booke
     assert provider_booking(reference_of(stale["id"])) is None
     confirmed = book_current(client, headers, trip_id, item).json()
     assert confirmed["status"] == "confirmed" and confirmed["acceptedPrice"]["amount"] == "999.00"
+    shown = itinerary(client, headers, trip_id)["items"][0]
+    assert shown["acceptedPrice"]["amount"] == "999.00" and shown["price"] == item["price"]  # booked price is shown
+    assert quote(client, headers, trip_id, item)["description"]
 
 
 def test_sold_out_offer_is_not_bookable_and_is_refused(client):
@@ -109,6 +112,8 @@ def test_accepted_price_and_budget_do_not_change_when_the_provider_changes_the_p
     assert budget["confirmedTotal"] == price and budget["estimatedTotal"] == "0.00"
     line = budget["lines"][0]
     assert line["kind"] == "confirmed" and line["amount"] == price and line["status"] == "confirmed"
+    shown = itinerary(client, headers, trip_id)["items"][0]
+    assert shown["acceptedPrice"]["amount"] == price and shown["price"]["amount"] == price  # saved estimate untouched
 
 
 def test_budget_separates_confirmed_from_estimates_and_flags_other_states(client):

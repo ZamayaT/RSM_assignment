@@ -98,6 +98,7 @@ export interface ItineraryItem {
   endsAt: string | null;
   travelers: number;
   price: { amount: string; currency: string } | null;
+  acceptedPrice: { amount: string; currency: string } | null; // set once the booking is confirmed
   revision: string;
   available: boolean;
   validUntil: string | null;
@@ -151,6 +152,7 @@ export interface Quote {
   saved: QuoteTerms;
   current: QuoteTerms;
   changes: ("price" | "revision" | "availability" | "expired")[];
+  description: string; // the provider's current description, including its conditions
   bookable: boolean;
   reason: string | null;
 }

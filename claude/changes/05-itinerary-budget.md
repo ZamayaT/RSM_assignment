@@ -1,6 +1,6 @@
 # Change 05 — Itinerary and budget
 
-Status: Draft, awaiting developer approval
+Status: Complete
 
 ## Goal
 Editors can add search results to a trip's itinerary, remove items and arrange their order; every participant sees the items with their schedule, cost, status and warnings, and a budget view that compares the estimated total with the trip budget. Concurrent edits never silently discard saved changes, and the person whose change was refused sees why and can re-apply or discard it. Covers FR-11 to FR-16, FR-18 to FR-20 and the "Itinerary", "Budget" and conflict dialog views, plus the "Add to itinerary" action of the Search view.
@@ -67,4 +67,4 @@ Editors can add search results to a trip's itinerary, remove items and arrange t
 - `assignment/` is untouched.
 
 ## Technologies implemented
-(To be filled as tasks are completed.)
+None: no new applications or dependencies were added in this change.

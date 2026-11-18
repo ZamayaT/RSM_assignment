@@ -66,8 +66,8 @@ export default function TripOverview() {
       <Row label="Budget (USD)" value={trip.budget} />
       {budget && (
         <Row
-          label="Estimated total (USD)"
-          value={`${budget.estimatedTotal} — ${
+          label="Current total (USD)"
+          value={`${budget.combinedTotal} (${budget.estimatedTotal} estimated + ${budget.confirmedTotal} confirmed) — ${
             budget.overBudget ? `over budget by ${budget.remaining.replace("-", "")}` : `${budget.remaining} remaining`
           }`}
         />
