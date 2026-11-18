@@ -1,7 +1,7 @@
 from functools import lru_cache
 
 from sqlalchemy import Engine, MetaData, create_engine
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, Session
 
 from app.config import get_settings
 
@@ -22,3 +22,9 @@ def get_engine() -> Engine:
         pool_pre_ping=True,
         connect_args={"connect_timeout": 3},
     )
+
+
+def get_session():
+    """FastAPI dependency: one session per request. Objects stay readable after commit."""
+    with Session(get_engine(), expire_on_commit=False) as session:
+        yield session

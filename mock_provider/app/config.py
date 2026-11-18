@@ -1,7 +1,7 @@
 from datetime import datetime
 from functools import lru_cache
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
 
@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     # or an offset in seconds from real time (negative allowed). A frozen instant wins over the offset.
     mock_clock_frozen_at: datetime | None = None
     mock_clock_offset_seconds: int = 0
+
+    # A pending booking resolves (to confirmed) once this many seconds, measured by the mock clock, have
+    # passed since it was accepted. It is applied when the booking is read.
+    mock_pending_resolution_seconds: int = Field(default=30, ge=0)
 
     @field_validator("mock_clock_frozen_at", mode="before")
     @classmethod

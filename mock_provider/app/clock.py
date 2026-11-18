@@ -12,8 +12,33 @@ class Clock:
     """
 
     def __init__(self, frozen_at: datetime | None = None, offset: timedelta = timedelta(0)):
+        self._initial = (frozen_at, offset)
         self.frozen_at = frozen_at
         self.offset = offset
+
+    # Runtime changes (used by the control interface); they last until `reset` or a restart.
+    def freeze(self) -> None:
+        self.frozen_at = self.now()
+
+    def freeze_at(self, instant: datetime) -> None:
+        self.frozen_at = instant
+
+    def set_offset(self, offset: timedelta) -> None:
+        self.frozen_at = None
+        self.offset = offset
+
+    def advance(self, delta: timedelta) -> None:
+        if self.frozen_at is not None:
+            self.frozen_at += delta
+        else:
+            self.offset += delta
+
+    def real_time(self) -> None:
+        self.frozen_at, self.offset = None, timedelta(0)
+
+    def reset(self) -> None:
+        """Back to the configured (environment) clock."""
+        self.frozen_at, self.offset = self._initial
 
     def now(self) -> datetime:
         if self.frozen_at is not None:

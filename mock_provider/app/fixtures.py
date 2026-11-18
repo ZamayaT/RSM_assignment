@@ -8,12 +8,12 @@ from decimal import ROUND_HALF_UP, Decimal
 from math import ceil
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.clock import get_clock
 from app.db import get_engine
-from app.models import Offer
+from app.models import Booking, IdempotencyRecord, Offer
 
 # Destination -> IANA timezone (destination-local calendar days).
 DESTINATIONS = {
@@ -44,6 +44,7 @@ SUPPLIERS = {
     "accommodation": ("supplier-a", "supplier-b", "supplier-c"),
     "activity": ("supplier-b", "supplier-c"),
 }
+ALL_SUPPLIERS = frozenset(supplier for suppliers in SUPPLIERS.values() for supplier in suppliers)
 SUPPLIER_FACTOR = {"supplier-a": Decimal("1.00"), "supplier-b": Decimal("0.90"), "supplier-c": Decimal("1.15")}
 
 # Each offer is a quote for one party size; searches match the requested party exactly.
@@ -158,3 +159,16 @@ def seed_if_empty() -> bool:
         session.add_all(Offer(**row) for row in build_offers(get_clock().now()))
         session.commit()
         return True
+
+
+def reseed() -> int:
+    """Deliberate reset: delete all bookings, idempotency records and offers, then reload the fixtures
+    relative to the current clock. Returns the number of offers loaded."""
+    with Session(get_engine()) as session:
+        session.execute(delete(IdempotencyRecord))
+        session.execute(delete(Booking))
+        session.execute(delete(Offer))
+        rows = build_offers(get_clock().now())
+        session.add_all(Offer(**row) for row in rows)
+        session.commit()
+        return len(rows)
