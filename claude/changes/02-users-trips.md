@@ -40,9 +40,9 @@ Seeded test users who can "log in" by selecting a name, and trips that a logged-
 - [x] 2.2 Error format for all errors and mapping of validation errors to `400` with per-field `details.fields`.
 
 ### Trips
-- [ ] 3.1 `POST /trips`: validate input; create the trip and its organizer participant in one transaction; version 1; money kept as `Decimal`.
-- [ ] 3.2 `GET /trips` (the user's trips with their role) and `GET /trips/{id}` (participants only, otherwise `404`).
-- [ ] 3.3 `PUT /trips/{id}` with optimistic locking on `version` (`409` with the latest trip on mismatch; version incremented on success); permission helper in the trips module that allows organizer and editor to edit.
+- [x] 3.1 `POST /trips`: validate input; create the trip and its organizer participant in one transaction; version 1; money kept as `Decimal`.
+- [x] 3.2 `GET /trips` (the user's trips with their role) and `GET /trips/{id}` (participants only, otherwise `404`).
+- [x] 3.3 `PUT /trips/{id}` with optimistic locking on `version` (`409` with the latest trip on mismatch; version incremented on success); permission helper in the trips module that allows organizer and editor to edit.
 
 ### Frontend
 - [ ] 4.1 API client and session: base URL from configuration, bearer token from `localStorage`, error handling (`401` returns to user selection); add `react-router-dom` and the route structure.

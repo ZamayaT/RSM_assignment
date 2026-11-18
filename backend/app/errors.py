@@ -9,6 +9,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 _CODES = {
     400: "VALIDATION_ERROR",
     401: "UNAUTHORIZED",
+    403: "FORBIDDEN",
     404: "NOT_FOUND",
     405: "METHOD_NOT_ALLOWED",
     409: "VERSION_CONFLICT",
@@ -55,7 +56,7 @@ def install_error_handling(app: FastAPI) -> None:
         for error in exc.errors():
             # Drop the "body"/"query" prefix; keep the first message per field.
             path = ".".join(str(part) for part in error["loc"][1:]) or "body"
-            fields.setdefault(path, error["msg"])
+            fields.setdefault(path, error["msg"].removeprefix("Value error, "))
         return error_response(request, 400, "VALIDATION_ERROR", "Some fields are invalid.", {"fields": fields})
 
     @app.exception_handler(StarletteHTTPException)
