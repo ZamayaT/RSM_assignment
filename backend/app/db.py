@@ -1,7 +1,8 @@
+from collections.abc import Iterator
 from functools import lru_cache
 
 from sqlalchemy import Engine, create_engine, text
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, Session
 
 from app.config import get_settings
 
@@ -27,3 +28,9 @@ def check_database() -> bool:
         return True
     except Exception:
         return False
+
+
+def get_session() -> Iterator[Session]:
+    """FastAPI dependency: one session per request, closed afterwards."""
+    with Session(get_engine(), expire_on_commit=False) as session:
+        yield session

@@ -1,6 +1,6 @@
 # Change 02 — Users and trips
 
-Status: Draft, awaiting developer approval
+Status: Approved
 
 ## Goal
 Seeded test users who can "log in" by selecting a name, and trips that a logged-in user can create, list, view, and edit, with validation, versioning (optimistic locking), and persistence. First visible vertical slice: backend, its frontend views, and tests together.
@@ -32,12 +32,12 @@ Seeded test users who can "log in" by selecting a name, and trips that a logged-
 ## Tasks
 
 ### Persistence and seed data
-- [ ] 1.1 Tables and first migration: users, auth tokens, trips (with `version`), trip participants (trip, user, role); backend container runs `alembic upgrade head` on start.
-- [ ] 1.2 Seed users on startup when empty (idempotent); supported destinations list and `GET /destinations`.
+- [x] 1.1 Tables and first migration: users, auth tokens, trips (with `version`), trip participants (trip, user, role); backend container runs `alembic upgrade head` on start.
+- [x] 1.2 Seed users on startup when empty (idempotent); supported destinations list and `GET /destinations`.
 
 ### Authentication and errors
-- [ ] 2.1 `GET /auth/users` (public list), `POST /auth/login`, `GET /auth/me`, and the current-user dependency (`401` when the token is missing or unknown).
-- [ ] 2.2 Error format for all errors and mapping of validation errors to `400` with per-field `details.fields`.
+- [x] 2.1 `GET /auth/users` (public list), `POST /auth/login`, `GET /auth/me`, and the current-user dependency (`401` when the token is missing or unknown).
+- [x] 2.2 Error format for all errors and mapping of validation errors to `400` with per-field `details.fields`.
 
 ### Trips
 - [ ] 3.1 `POST /trips`: validate input; create the trip and its organizer participant in one transaction; version 1; money kept as `Decimal`.
@@ -49,12 +49,12 @@ Seeded test users who can "log in" by selecting a name, and trips that a logged-
 - [ ] 4.2 User selection start page (list of seeded users, click to log in) and a "Switch user" action in the app bar.
 - [ ] 4.3 My trips: list with name, dates, destinations, and the user's role; "Create trip" button; empty state.
 - [ ] 4.4 Create/edit trip form: all fields, per-field validation errors from the backend, success only after the save succeeded, version-conflict message with a "reload latest" action.
-- [ ] 4.5 Basic trip overview: dates, destinations, travelers, budget, notes, role, version-agnostic "Edit" link.
+- [ ] 4.5 Basic trip overview: dates, destinations, travelers, budget, notes, role, "Edit" link (the form loads the latest version).
 
 ### Tests and documentation
 - [ ] 5.1 Auth and trip tests: login, `401`, validation errors (each field), create/list/get, only-my-trips visibility, `404` for non-participants, money exactness.
 - [ ] 5.2 Versioning and persistence tests: successful update increments the version, stale update gets `409` and loses nothing, two concurrent saves from the same version (exactly one succeeds), trips survive an engine restart.
-- [ ] 5.3 Update `README.md`: seeded users, how to log in from the browser, the new test command output expectations, and `GET /docs` pointer (only what is implemented).
+- [ ] 5.3 Update `README.md`: seeded users, how to log in from the browser, how to run the tests, and `GET /docs` pointer (only what is implemented).
 
 ## Acceptance criteria
 - In the browser at http://localhost:5173: choose a seeded user, create a trip, see it in My trips, open its overview, edit it, switch to another user and not see it.
