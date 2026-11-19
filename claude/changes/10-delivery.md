@@ -1,6 +1,6 @@
 # Change 10 — Delivery
 
-Status: Done (all tasks complete)
+Status: Complete
 
 ## Goal
 A reviewer can set up the project from a clean clone, understand the key decisions and guarantees, follow a demo of the main workflow and selected failure and concurrency scenarios, and see how AI was used and how its output was verified. Covers the deliverables 5 to 8 of `PROJECT.md` section 12 (README completeness, architecture note, demo walkthrough, AI usage and verification note) and a final consistency pass.

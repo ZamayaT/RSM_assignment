@@ -90,7 +90,7 @@ The booking recipes use the fixture offer `rome-activity-supplier-boots-1-p2` (r
 Reusable pieces:
 
 ```bash
-SEARCH='{"category":"accommodation","destination":"Lisbon","startsOn":"2000-01-01","endsOn":"2100-01-01","travelers":2}'
+SEARCH='{"category":"accommodation","destination":"Lisbon","startsOn":"2000-01-01","endsOn":"2100-01-01","travelers":2}'   # every Lisbon stay for 2: a long list
 BOOK='{"clientReference":"demo-1","offerId":"rome-activity-supplier-boots-1-p2","expectedOfferRevision":"r1","expectedPrice":{"amount":"107.64","currency":"USD"}}'
 ```
 

@@ -49,7 +49,7 @@ The assignment asks for the committed AI development setup (agent rules, prompts
 
 Described from the organizer's standpoint (organizers see everything). Differences for other roles are noted at the end.
 
-**Layout (change 7).** Every page after login has a header with the "Travel Planning Platform" title, a "My trips" link and the username. A trip opens a **trip workspace**: on the left, a fixed general-info card (the trip overview, 4.4, with "Edit Trip"); on the right, a pill tab bar (Itinerary, Budget, Bookings, Documents, Search, Participants) above a section card that scrolls by itself. Each tab has its own URL (`/trips/:id/<section>`). Views 4.5 to 4.9 are tabs; the last tab is 4.11 Assistant (Itinerary, Budget, Bookings, Documents, Search, Participants, Assistant). Visual style: Montserrat font, colors `#185075`, `#427ea6`, `#f57b31` and white (section 8.2).
+**Layout (change 7).** Every page after login has a header with the "Travel Planning Platform" title, a "My trips" link and the username. A trip opens a **trip workspace**: on the left, a fixed general-info card (the trip overview, 4.4, with "Edit Trip"); on the right, a pill tab bar (Itinerary, Budget, Bookings, Documents, Search, Participants, Assistant) above a section card that scrolls by itself. Each tab has its own URL (`/trips/:id/<section>`). Views 4.5 to 4.11 are tabs; the booking confirmation (4.9) is a dialog opened from the Itinerary. Visual style: Montserrat font, colors `#185075`, `#427ea6`, `#f57b31` and white (section 8.2).
 
 **4.1 User selection (start page)**
 - List of seeded test users; clicking one logs in as that user (no password).
@@ -168,7 +168,7 @@ IDs `FR-xx` map to PRD user stories (`US-xx`).
 - **FR-35 (US-10)** Mismatches between stored files and their references are detected or recovered; no document is falsely reported as ready.
 
 ### Assistant and MCP
-Implemented in change 9 (FR-07 for assistant tools, FR-36 to FR-42): MCP tools `get_trip`, `get_itinerary`, `get_budget`, `get_bookings`, `search_options` at `/mcp`; each call authenticates the bearer token and checks trip membership; the assistant endpoint is `POST /trips/{id}/assistant/messages`. Tests: `tests/test_mcp.py` and `tests/test_assistant.py`; evaluations: `evals.search` and `evals.assistant`.
+Implemented in change 9 (FR-07 for assistant tools, FR-36 to FR-42): MCP tools `get_trip`, `get_itinerary`, `get_budget`, `get_bookings`, `search_options` at `/mcp`; each call authenticates the bearer token and checks trip membership; the assistant endpoint is `POST /trips/{id}/assistant/messages`. `search_options` returns at most 20 offers (available first, then cheapest) with `offersTotal` and a `note` when some were left out (change 11); the REST search returns them all. Tests: `tests/test_mcp.py` and `tests/test_assistant.py`; evaluations: `evals.search` and `evals.assistant`.
 
 - **FR-36 (US-11)** The assistant inspects the authorized trip and searches options through read-only MCP tools.
 - **FR-37 (US-11)** Recommendations are grounded in retrieved data, explain their relation to dates, budget, preferences, and restrictions, flag gaps or conflicts, and state when nothing suitable exists.
@@ -286,10 +286,10 @@ All amounts use `Decimal` with two fractional digits. Provider amounts are alrea
 
 **Mock dataset**
 - Destinations: Lisbon, Paris, Rome. Transport origins: London, New York, Madrid.
-- Three logical suppliers (`supplier-alamo`, `supplier-boots`, `supplier-croc`); each category is served by at least two, so partial results can be demonstrated in every category.
+- Three logical suppliers, `supplier-alamo`, `supplier-boots` and `supplier-croc` (shown in the application as Supplier Alamo, Supplier Boots and Supplier Croc); each category is served by at least two, so partial results can be demonstrated in every category.
 - About 3,000 offers: a base catalogue with stable ids plus repeated listings that fill the days from the day after the mock's "today" until 31 January 2027 (November 2026 to January 2027), with seasonal prices, eight activities per destination (including a museum tour and a food places tour), mixing availability, prices, and quote expiries.
 - Dates relative to the mock's clock (the repeated listings are limited to that window; a clock past it gets the next 92 days), which can be frozen or advanced through configuration.
-- Supplier identifiers `supplier-alamo`, `supplier-boots` and `supplier-croc`, shown in the application as Supplier Alamo, Supplier Boots and Supplier Croc.
+- A trip whose dates fall outside the catalogue window finds no offers (an empty search, documented in the README).
 - Failure switches through mock-only control endpoints or configuration (never used by the application): supplier timeout, rate limit, price change, sold out, booking left pending, slow response.
 
 **Scheduling rules (simplified)**
@@ -338,18 +338,19 @@ postgres         application data (separate database/schema for the mock)
 volume           generated PDFs
 ```
 
-Backend modules:
-- `auth`: test users, tokens, current-user dependency.
-- `trips`: trips, participants, roles, permission checks (single source of truth for access).
-- `itinerary`: items, ordering, warnings, versioning.
+Backend modules (`backend/app/`):
+- `auth`, `seed`: test users, tokens, current-user dependency; missing seeded users are created on startup.
+- `trips`, `participants`: trips, participants, roles, permission checks (`trips` is the single source of truth for access).
+- `itinerary`, `itinerary_rules`: items, ordering, warnings, versioning.
 - `budget`: pure `Decimal` calculations.
-- `providers`: HTTP client for the provider contract (timeouts, retries, error mapping); the only code that talks to the mock.
-- `bookings`: attempts, idempotency, reconciliation.
-- `documents`: snapshots, PDF rendering, storage, job queue, downloads.
-- `assistant`: `LLMClient` interface and conversation loop.
-- `mcp`: read-only tools; uses read services only and enforces the acting user's permissions.
+- `search`, `provider_client`: search and the HTTP client for the provider contract (timeouts, error mapping); `provider_client` is the only code that talks to the mock.
+- `bookings`, `booking_steps`: attempts, idempotency, reconciliation (the steps run in the worker).
+- `documents`, `document_*`: snapshots, PDF rendering, storage, job queue, downloads.
+- `assistant/`: `LLMClient` interface, MCP bridge, conversation loop, endpoint, probe.
+- `mcp_server/`: read-only MCP tools; uses read code only and enforces the acting user's permissions.
+- `worker`, `errors`, `logging_setup`, `config`, `db`: worker entrypoint, standard errors, request-id logging, settings, database.
 
-Rules: dependencies point inward (API, then services, then repositories); `assistant` and `mcp` never import write services; all provider access goes through `providers`.
+Rules: dependencies point inward (API, then services, then repositories); `assistant` and `mcp_server` never import write modules (tested); all provider access goes through `provider_client`.
 
 ## 10. Build plan (Confirmed)
 
@@ -369,6 +370,7 @@ The PRD requires all 12 stories; there is no smaller official MVP. Each step is 
 | 8.5 | Hardening | Logging with request ids and a standard 500, offer restrictions end to end (mock, search, quote, itinerary, documents), ruff | Restrictions in Search, booking dialog and Itinerary |
 | 9 | MCP and assistant | MCP tools, `LLMClient`, assistant loop, evaluations | Assistant (workspace tab) |
 | 10 | Delivery | README, architecture note, demo walkthrough, AI usage note | Final consistency pass |
+| 11 | Richer mock data | Catalogue over Nov 2026 to Jan 2027, more activities, supplier names, user `daniela`, 20-offer limit on `search_options` | Supplier names in Search and Itinerary |
 
 ## 11. Testing strategy (reduced scope)
 
@@ -378,7 +380,7 @@ Not everything will be covered. Priorities, targeting the guarantees reviewers c
 3. **Permissions**: viewers cannot edit, book, or generate; non-participants are denied, on REST and on MCP tools.
 4. **Concurrency**: two saves based on the same version; the second receives 409 and nothing is lost.
 5. **Document jobs**: status transitions, recovery of a stuck job, checksum mismatch detection.
-6. **Search**: one supplier down produces `partial=true` with warnings.
+6. **Search**: one supplier down produces `partial=true` with warnings; the search evaluation checks every month of the catalogue.
 7. **Assistant**: deterministic tests of the MCP layer (tool list, authentication, permissions, parity with REST) and of our conversation loop and endpoint with a scripted LLM (step limit, failures, one-trip restriction, error codes, nothing written). The scripted model tests our code only; they are not evidence of recommendation quality, which is measured by the model-dependent evaluation.
 
 Skipped or minimal (documented as limits): frontend tests, browser end-to-end tests, load tests, broad edge-case coverage.

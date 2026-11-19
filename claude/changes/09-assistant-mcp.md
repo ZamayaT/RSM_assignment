@@ -1,6 +1,6 @@
 # Change 09 — Read-only MCP layer and assistant
 
-Status: Done (all tasks complete)
+Status: Complete
 
 ## Goal
 A participant (organizer, editor or viewer) opens an **Assistant** tab in a trip, asks for travel recommendations in plain language, and gets an answer grounded in real data: the assistant (a real LLM) discovers and calls **read-only MCP tools** that read the trip, the itinerary, the budget, the bookings and search the provider's options, always as the logged-in user. It shows which tools it used and what they returned or how they failed, says when nothing suitable exists, and never changes the itinerary or requests a booking (no such tool exists). Search and assistant behavior have **reproducible evaluations**, with the deterministic checks kept apart from the ones that need a model. Covers FR-36 to FR-42, US-11, US-12, FR-07 for assistant tools, the "Assistant" view (`PROJECT.md` 4.11) and resolves the open question about the LLM provider (section 13).

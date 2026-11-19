@@ -1,6 +1,6 @@
 # Change 11 — Richer mock data, supplier names and a new user
 
-Status: Done (all tasks complete)
+Status: Complete
 
 ## Goal
 The provider mock offers options across November 2026, December 2026 and January 2027 (not only a few offers about a month ahead), with more accommodation, museum and food tours and other activities; the suppliers have recognizable names; and a fourth test user, Daniela, exists.

@@ -4,7 +4,7 @@ Repository: RSM_assignment. Lightweight, change-driven workflow. No extra framew
 
 ## Project Files (in `claude/`)
 - `CLAUDE.md` — these rules (always follow).
-- `PROJECT.md` — description, objectives, MVP scope, technologies, requirements. Read only when the task needs that context.
+- `PROJECT.md` — description, objectives, scope, technologies, requirements. Read only when the task needs that context.
 - `changes/` — one file per change (`changes/NN-short-name.md`). A change is one development step. Each file has a goal, scope, a checklist of small tasks, acceptance criteria, and a **Technologies implemented** section:
   ```
   - [ ] 1.1 Task description
@@ -18,7 +18,7 @@ Repository: RSM_assignment. Lightweight, change-driven workflow. No extra framew
 3. **Before each task**: Read the change file to confirm the task and see what is already done.
 4. **Implement**: When I say "Implement X", work **only on X** (one task, or the whole change only if I name the change). Never start, prepare, or "while I'm here" fix other tasks unless I explicitly ask for multiple.
 5. **Complete**: Tick the task `[x]` in the change file as soon as it is done. Report briefly.
-6. **README**: `README.md` documents only what is already implemented. If a task changes setup, installation, requirements, configuration, ports, or run/test commands, update `README.md` in that same task (simple step description + copy-paste command). Never document planned features there.
+6. **README and docs**: `README.md` (and `docs/`, `mock_provider/README.md`) document only what is already implemented. If a task changes setup, installation, requirements, configuration, ports, or run/test commands, update `README.md` in that same task (simple step description + copy-paste command). Never document planned features there.
 7. Out-of-scope issues found along the way: mention them in one line; do not fix them.
 
 ## Assignment Folder
@@ -38,7 +38,7 @@ Repository: RSM_assignment. Lightweight, change-driven workflow. No extra framew
 
 ## Code Conventions
 - Follow the technologies and requirements in `PROJECT.md`.
-- Match existing code style; keep changes minimal and within MVP scope.
+- Match existing code style; keep changes minimal and within the scope in `PROJECT.md`.
 - Don't add dependencies, abstractions, or features not required by the task.
 - Run relevant tests/build for the touched code before ticking a task; if not run, say so.
 
