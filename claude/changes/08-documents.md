@@ -54,12 +54,12 @@ PDF with ReportLab (pure Python); PostgreSQL job table plus the existing worker 
 - [x] 2.3 File storage helpers: write to a temporary path, flush, compute SHA-256 and size, atomic rename; verify (exists, size, checksum); remove stale temporary files.
 
 ### API
-- [ ] 3.1 `POST /trips/{id}/documents` (organizer, editor): snapshot, `waiting` row, `201`; an existing live document returns `200` with it. `GET /trips/{id}/documents` (history, newest first, with who, when, trip version, status, failure message, size) and `GET .../{docId}` (status), for every participant; the list marks complete documents whose file is missing as `failed`.
-- [ ] 3.2 `GET .../{docId}/download` (every participant; only `complete`; verified; `409 DOCUMENT_UNAVAILABLE` and `failed` on a mismatch; a document that is not complete is refused with a clear error) and `POST .../{docId}/retry` (organizer, editor; only `failed`, back to `waiting` on the same snapshot).
+- [x] 3.1 `POST /trips/{id}/documents` (organizer, editor): snapshot, `waiting` row, `201`; an existing live document returns `200` with it. `GET /trips/{id}/documents` (history, newest first, with who, when, trip version, status, failure message, size) and `GET .../{docId}` (status), for every participant; the list marks complete documents whose file is missing as `failed`.
+- [x] 3.2 `GET .../{docId}/download` (every participant; only `complete`; verified; `409 DOCUMENT_UNAVAILABLE` and `failed` on a mismatch; a document that is not complete is refused with a clear error) and `POST .../{docId}/retry` (organizer, editor; only `failed`, back to `waiting` on the same snapshot).
 
 ### Worker
-- [ ] 4.1 Worker steps for documents next to the booking steps: claim `waiting` with `FOR UPDATE SKIP LOCKED`, render and store, mark `complete` or `failed`; one function per step so tests can run them without sleeping; logs carry the document id.
-- [ ] 4.2 Recovery: reset stuck `in_progress` documents to `waiting`, fail them after the maximum attempts, delete stale temporary files; the worker's startup and shutdown messages mention both jobs.
+- [x] 4.1 Worker steps for documents next to the booking steps: claim `waiting` with `FOR UPDATE SKIP LOCKED`, render and store, mark `complete` or `failed`; one function per step so tests can run them without sleeping; logs carry the document id.
+- [x] 4.2 Recovery: reset stuck `in_progress` documents to `waiting`, fail them after the maximum attempts, delete stale temporary files; the worker's startup and shutdown messages mention both jobs.
 
 ### Frontend
 - [ ] 5.1 API calls and the **Documents** tab `/trips/:id/documents` (placed after Bookings): "Generate document" for organizer and editor, history table (who, when, trip version, status chip, failure message), "Download" for complete documents through an authenticated request that saves the file, "Retry" for failed ones (organizer and editor only), the "trip has changed since this document" note, loading, error and empty states.

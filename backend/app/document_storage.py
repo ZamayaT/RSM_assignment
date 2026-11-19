@@ -38,7 +38,7 @@ def write_file(directory: str | Path, document_id: uuid.UUID, content: bytes) ->
     return StoredFile(final.name, len(content), hashlib.sha256(content).hexdigest())
 
 
-def _resolve(directory: str | Path, path: str) -> Path | None:
+def resolve_path(directory: str | Path, path: str) -> Path | None:
     """The absolute file for a stored relative path; None if it would point outside the directory."""
     root = Path(directory).resolve()
     full = (root / path).resolve()
@@ -49,7 +49,7 @@ def file_exists(directory: str | Path, path: str | None) -> bool:
     """Cheap check used by the list: the file is there."""
     if not path:
         return False
-    full = _resolve(directory, path)
+    full = resolve_path(directory, path)
     return full is not None and full.is_file()
 
 
@@ -57,7 +57,7 @@ def verify_file(directory: str | Path, path: str | None, size: int | None, sha25
     """True only if the file exists and its size and SHA-256 equal the stored values."""
     if not path or size is None or not sha256:
         return False
-    full = _resolve(directory, path)
+    full = resolve_path(directory, path)
     if full is None or not full.is_file() or full.stat().st_size != size:
         return False
     digest = hashlib.sha256()

@@ -1,9 +1,11 @@
 """PDF renderer: a pure function from a snapshot to bytes (ReportLab, built-in Helvetica).
 
-Characters Helvetica cannot show are replaced by "?". Page compression and ASCII85 are off so tests can read the
+Characters Helvetica cannot show are replaced by "?". Output is deterministic. Compression and ASCII85 are off so tests can read the
 text straight from the file (documents are small).
 """
 import io
+import re
+import unicodedata
 from datetime import datetime
 from xml.sax.saxutils import escape
 
@@ -37,6 +39,13 @@ CATEGORY = {"transport": "Transport", "accommodation": "Accommodation", "activit
 def clean(value) -> str:
     """Text safe for the PDF: only characters Helvetica (WinAnsi) can show; others become "?"."""
     return str(value).encode("cp1252", errors="replace").decode("cp1252")
+
+
+def file_stem(trip_name: str, trip_version: int, document_id: str) -> str:
+    """`trip_<name slug>_v<version>_<first 8 characters of the document id>`: the download name and PDF title."""
+    ascii_name = unicodedata.normalize("NFKD", trip_name).encode("ascii", "ignore").decode().lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", ascii_name).strip("-")[:40].strip("-") or "trip"
+    return f"trip_{slug}_v{trip_version}_{str(document_id)[:8]}"
 
 
 def _p(value, style) -> Paragraph:
@@ -198,7 +207,8 @@ def render_pdf(snapshot: dict, document_id: str) -> bytes:
         topMargin=15 * mm,
         bottomMargin=16 * mm,
         pageCompression=0,
-        title=clean(f"{trip['name']} - trip summary"),
+        invariant=1,  # same snapshot -> identical bytes, so a retry or a second worker writes the same file
+        title=file_stem(trip["name"], snapshot["tripVersion"], document_id),
     )
     doc.build(story, onFirstPage=footer, onLaterPages=footer)
     return buffer.getvalue()
