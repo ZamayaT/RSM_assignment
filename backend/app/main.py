@@ -4,7 +4,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app import auth, bookings, budget, destinations, documents, itinerary, participants, search, trips, users
+from app import (
+    auth,
+    bookings,
+    budget,
+    destinations,
+    documents,
+    itinerary,
+    mcp_server,
+    participants,
+    search,
+    trips,
+    users,
+)
+from app.assistant import router as assistant_router
 from app.config import get_settings
 from app.db import check_database
 from app.errors import install_error_handling
@@ -15,7 +28,8 @@ from app.seed import run_seed
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     run_seed()
-    yield
+    async with mcp_server.running():
+        yield
 
 
 setup_logging()
@@ -42,6 +56,8 @@ app.include_router(itinerary.router)
 app.include_router(budget.router)
 app.include_router(bookings.router)
 app.include_router(documents.router)
+app.include_router(assistant_router.router)
+mcp_server.mount(app)
 
 
 @app.get("/health")

@@ -41,3 +41,6 @@ logs/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Assistant evaluation reports (model answers on test data)
+backend/evals/results/

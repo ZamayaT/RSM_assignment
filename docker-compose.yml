@@ -55,6 +55,7 @@ services:
     build: ./frontend
     environment:
       VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://localhost:8000}
+      VITE_SHOW_ASSISTANT_TOOLS: ${VITE_SHOW_ASSISTANT_TOOLS:-true}
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     depends_on:

@@ -2,7 +2,7 @@
 
 Group trip planning with provider search, simulated bookings, PDF trip documents, and a read-only AI assistant using MCP.
 
-> Status: under construction. This README only documents what is already implemented; setup steps are added as each development step is completed.
+> This README documents only what is implemented. Design and guarantees: [`docs/architecture.md`](docs/architecture.md). A guided demo: [`docs/demo.md`](docs/demo.md). How AI was used and checked: [`docs/ai-usage.md`](docs/ai-usage.md).
 
 Everything runs in **Docker**: Python, Node, PostgreSQL and all packages are installed inside containers. On your machine you only need Git and Docker Desktop.
 
@@ -68,7 +68,7 @@ docker compose up --build -d
 
 The start page lists the seeded test users (`alice`, `bob`, `carol`). The backend creates them on startup if the database has none, and applies its migrations automatically when its container starts.
 
-To log in, click a name. From there you can create a trip (name, destinations Lisbon/Paris/Rome, dates, travelers, budget in USD, notes), see it under **My trips**, open it, and edit it (**Edit Trip**). An open trip shows its general information on the left and its sections as tabs on the right (**Itinerary**, **Budget**, **Bookings**, **Search**, **Participants**); each tab has its own URL, so a reload keeps the tab. Click the **Travel Planning Platform** title in the top bar to sign out and log in as someone else: each user sees only their own trips. If two people edit the same trip, the second save is refused with a "changed by someone else" message and nothing is overwritten; click **Reload latest** to continue from the newest version. Your login is kept in the browser, so reloading a trip page keeps you signed in; the start page (`http://localhost:5173/`) always shows the user list, and choosing a user there replaces the current session.
+To log in, click a name. From there you can create a trip (name, destinations Lisbon/Paris/Rome, dates, travelers, budget in USD, notes), see it under **My trips**, open it, and edit it (**Edit Trip**). An open trip shows its general information on the left and its sections as tabs on the right (**Itinerary**, **Budget**, **Bookings**, **Documents**, **Search**, **Participants**, **Assistant**); each tab has its own URL, so a reload keeps the tab. Click the **Travel Planning Platform** title in the top bar to sign out and log in as someone else: each user sees only their own trips. If two people edit the same trip, the second save is refused with a "changed by someone else" message and nothing is overwritten; click **Reload latest** to continue from the newest version. Your login is kept in the browser, so reloading a trip page keeps you signed in; the start page (`http://localhost:5173/`) always shows the user list, and choosing a user there replaces the current session.
 
 To share a trip, open it and go to the **Participants** tab. As the organizer, type a username (suggestions appear as you type), choose **editor** or **viewer**, and click **Add**. You can also change a participant's role or remove them. To try the roles, add `bob` as viewer and `carol` as editor, then click the top-bar title to switch user: a viewer can read the trip but not edit it, an editor can edit the trip but sees the participants read-only, and a user who is not on the trip (or was removed) does not see it. The backend enforces these rules, not only the screens.
 
@@ -179,6 +179,47 @@ docker compose exec backend sh -c 'rm -f /data/documents/*.pdf'
 
 The API endpoints are listed and can be tried at http://localhost:8000/docs.
 
+### Assistant
+
+The **Assistant** tab (last tab of a trip) answers travel questions in plain language, using a real language model that calls **read-only tools** (trip, itinerary, budget, bookings, and a search of the provider's current offers) as the logged-in user. Under each answer, **Tools used** (shown by default; set `VITE_SHOW_ASSISTANT_TOOLS=false` in `.env` and run `docker compose up -d frontend` to hide it) lists every tool with its arguments and result or error, so a recommendation can be checked; a partial or empty search is shown as such. Every participant (organizer, editor, viewer) can use it. It never changes anything and cannot book: no such tool exists, and if you ask, it explains what to do yourself from the Itinerary tab. The chat lives in the open tab and is cleared on reload (nothing is saved).
+
+The assistant is optional and off until you give it a model. It speaks the OpenAI-compatible chat API, so any provider works; a free OpenRouter model is the documented example:
+
+1. Create a free key at https://openrouter.ai/keys.
+2. In your `.env` (copied from `.env.example` in step 4), uncomment and fill `LLM_API_KEY`; `LLM_BASE_URL` and `LLM_MODEL` already default to OpenRouter and a free model. Other variables: `LLM_TIMEOUT_SECONDS` (per model call, default 60), `ASSISTANT_MAX_STEPS` (model calls per question, default 6) and `MCP_URL`. The key is a secret: keep it only in `.env`.
+3. Restart the backend and check the model answers and uses tools (the probe never prints the key; the first command lists the free models that support tools):
+
+```bash
+docker compose up -d backend
+docker compose exec backend python -m app.assistant.probe --list-free
+docker compose exec backend python -m app.assistant.probe
+```
+
+Without a key the tab says what to set. A provider limit (free models allow only about 50 requests a day), a timeout or a bad key also show a clear message. Each question uses about 2 to 4 model calls.
+
+**Data sent to the model provider.** The tool results (trip, itinerary, budget, bookings and offers) are sent to the configured provider, which on free tiers may keep or use them. The application only holds test data; do not enter real personal data.
+
+**Inspect the MCP tools.** The tools are served by the backend at `http://localhost:8000/mcp` (standard MCP over HTTP; read-only; the same bearer token as the REST API). Copy-paste commands (Git Bash or any shell with `curl` and `python`):
+
+```bash
+TOKEN=$(curl -s -X POST localhost:8000/auth/login -H 'Content-Type: application/json' -d '{"username":"alice"}' | python -c "import sys,json;print(json.load(sys.stdin)['token'])")
+curl -s -X POST localhost:8000/mcp -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+The list is `get_trip`, `get_itinerary`, `get_budget`, `get_bookings` and `search_options`. To call one, replace the body with `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_trip","arguments":{"trip_id":"<TRIP_ID>"}}}` (the trip id is in the trip's URL). Without a token the answer is `401`; a trip you do not belong to answers "Trip not found." as a tool error.
+
+**Evaluations.** Two commands, kept apart:
+
+```bash
+docker compose exec backend python -m evals.search
+docker compose exec backend python -m evals.assistant
+```
+
+- `evals.search` is deterministic: it needs the running provider mock and no model or key, costs nothing, and prints pass/fail per case (filters, known offers, party-size quotes, a supplier failure giving a partial result, an impossible query). It exits with an error if a case fails.
+- `evals.assistant` needs the model: it asks the running application a handful of questions on temporary "[eval] ..." trips (cheapest within budget, nothing suitable, provider down, one supplier down, a request to book, and more) and checks rules, not opinions: only read-only tools used, expected tools called, every amount cited comes from a tool result, failures and empty results admitted, no booking claimed and nothing changed. It prints a table and writes a JSON report to `backend/evals/results/`. Add `--runs 3` to repeat each scenario, `--only a,b` to pick some, `--list` to see them. Cost: about 2 to 3 model calls per scenario; free on a free model (a full run is a few dozen requests, within a day's allowance), otherwise a few thousand tokens per call at your provider's price. Free models are inconsistent, so a failure is reported as it is: the pass rate is the result.
+
+**Limits.** Conversations are not saved; no streaming, voice or attachments; one trip per chat; only the tools above exist; the answer quality depends on the model you configure.
+
 ## 7. Run the tests
 
 With the services running (in another terminal):
@@ -188,7 +229,7 @@ docker compose exec backend pytest
 docker compose exec mock_provider pytest
 ```
 
-The itinerary and booking tests (outcomes, idempotency, recovery by the worker, permissions and concurrency) also call the real mock, so the `backend` and `mock_provider` services must be running; after a `docker compose down` they are not, so start them again first. The booking tests run the worker's steps directly, with the waiting intervals set to zero, so they do not depend on the `worker` service or on waiting. The document tests (generation, snapshots, recovery after a stuck worker, lost or altered files, permissions) run the worker steps directly and write to a temporary folder, so they need no waiting and do not touch your stored documents. The search tests call the real provider mock over HTTP, so the `mock_provider` service must be running; they reset the mock before and after each test, which also clears any failures you set by hand. The backend tests create and use their own database (`<POSTGRES_DB>_test`, dropped and recreated on each run), so your trips and logins are never touched. All of them should pass; they cover login, validation, trips, visibility, versioning conflicts, concurrent saves and persistence across a restart.
+The itinerary and booking tests (outcomes, idempotency, recovery by the worker, permissions and concurrency) also call the real mock, so the `backend` and `mock_provider` services must be running; after a `docker compose down` they are not, so start them again first. The booking tests run the worker's steps directly, with the waiting intervals set to zero, so they do not depend on the `worker` service or on waiting. The document tests (generation, snapshots, recovery after a stuck worker, lost or altered files, permissions) run the worker steps directly and write to a temporary folder, so they need no waiting and do not touch your stored documents. The search tests call the real provider mock over HTTP, so the `mock_provider` service must be running; they reset the mock before and after each test, which also clears any failures you set by hand. The MCP tests (tool list, authentication, permissions, tool results equal to the REST responses, search states) use the real provider mock. The assistant tests use a **scripted** model: they check our own code (tool execution, step limit, failures, the one-trip restriction, error codes, nothing written), never how well a real model answers; that is what `evals.assistant` is for. No test needs a key or calls a model. The backend tests create and use their own database (`<POSTGRES_DB>_test`, dropped and recreated on each run), so your trips and logins are never touched. All of them should pass; they cover login, validation, trips, visibility, versioning conflicts, concurrent saves and persistence across a restart.
 
 The provider mock stores its data in its own PostgreSQL schema (`mock_provider`) and applies its migrations automatically when its container starts. Its fixtures, demo tokens, clock, `/control` endpoints and copy-paste failure scenarios are documented in [`mock_provider/README.md`](mock_provider/README.md). On startup it also loads its fixture offers (Lisbon, Paris, Rome) if there are none.
 
@@ -234,9 +275,20 @@ docker compose down -v
   docker compose logs -f backend
   ```
 
+## Proposed deployment approach
+
+A proposal only; nothing here is deployed. The Compose file is for local use: it runs development servers (`npm run dev` for the frontend, `uvicorn` without workers for the backend) and publishes the database's data in a local volume.
+
+- **Hosting**: run the same images on one small container host (a VM with Docker Compose, or a managed container service). Serve the frontend as static files built with `npm run build` behind a reverse proxy with HTTPS, and route `/` to it and the API (including `/mcp`) to the backend. The `worker` runs as a second container of the backend image, one replica at least.
+- **Database**: a managed PostgreSQL with automated backups and point-in-time recovery instead of the local container; the backend applies its migrations on start. The generated PDFs live on a persistent volume or object storage that is also backed up (their checksums are kept in the database).
+- **Secrets and configuration**: all settings are environment variables (see `.env.example`); keep `POSTGRES_PASSWORD`, `PROVIDER_TOKEN` and `LLM_API_KEY` in the host's secret store, not in files, and set `FRONTEND_ORIGIN` and `VITE_BACKEND_URL` to the public URLs.
+- **What must change first**: the test-user login (no passwords) must be replaced by real authentication, and the provider mock by the real provider; the assistant's data is sent to the model provider, so choose one whose terms fit real data.
+- **Operation**: logs go to the container output with a request id per line (see Troubleshooting); `GET /health` can serve as the health check.
+
 ## Project documentation
 
 - `assignment/`: original assignment (PRD, candidate guide, provider contract `openAPI.json`).
+- `docs/`: architecture note, demo walkthrough, AI usage and verification note.
 - `claude/PROJECT.md`: project summary, requirements, decisions, architecture, build plan.
 - `claude/CLAUDE.md`: AI development rules (development harness).
 - `claude/changes/`: one file per development step with its tasks.
