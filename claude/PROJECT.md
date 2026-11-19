@@ -105,7 +105,7 @@ Described from the organizer's standpoint (organizers see everything). Differenc
 - Download for completed documents (every participant), through an authenticated request that saves the file; "Retry" for failed ones (organizer and editor). Status updates automatically (polling every 3 s while a document is waiting or in progress) and is restored after reload.
 
 **4.11 Assistant**
-- Last tab of the trip (`/trips/:id/assistant`): a chat panel tied to the current trip, open to every participant (viewers too). The messages live in the open tab and are cleared on reload (nothing is saved).
+- Last tab of the trip (`/trips/:id/assistant`): a chat panel tied to the current trip, open to every participant (viewers too). The messages live in the open tab; only the last question and answer are also kept in the browser's `sessionStorage`, per user and trip, so they reappear when returning to the tab (shown as the last exchange, never used as context for new questions, removed on sign-out). Nothing is saved on the server.
 - Under each answer, "Tools used" (shown by default; an optional frontend setting, `VITE_SHOW_ASSISTANT_TOOLS=false`, hides it; this list is our own addition, the PRD only requires that tool failures are made clear): tool name, arguments, ok or failed, and a short summary or the error; partial and empty searches are shown as such, so recommendations can be checked.
 - Permanent notice that the assistant is read-only: it recommends, the user performs changes.
 - Clear messages when the assistant is not configured, the provider limit is reached, a call times out, or another error happens.

@@ -266,9 +266,55 @@ export function loadSession(): Session | null {
 export function saveSession(session: Session | null): void {
   try {
     if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    else localStorage.removeItem(SESSION_KEY);
+    else {
+      localStorage.removeItem(SESSION_KEY);
+      clearLastExchanges(); // the saved assistant answers belong to the user who just left
+    }
   } catch {
     // Storage unavailable: the session just won't survive a reload.
+  }
+}
+
+// --- the assistant's last exchange (question and answer), kept in sessionStorage per user and trip ---
+
+export interface LastExchange {
+  question: string;
+  answer: string;
+  toolCalls: AssistantToolCall[];
+  incomplete: boolean;
+}
+
+const EXCHANGE_PREFIX = "assistant-last:";
+
+function exchangeKey(userId: string, tripId: string): string {
+  return `${EXCHANGE_PREFIX}${userId}:${tripId}`;
+}
+
+export function loadLastExchange(userId: string, tripId: string): LastExchange | null {
+  try {
+    const raw = sessionStorage.getItem(exchangeKey(userId, tripId));
+    return raw ? (JSON.parse(raw) as LastExchange) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveLastExchange(userId: string, tripId: string, exchange: LastExchange | null): void {
+  try {
+    if (exchange) sessionStorage.setItem(exchangeKey(userId, tripId), JSON.stringify(exchange));
+    else sessionStorage.removeItem(exchangeKey(userId, tripId));
+  } catch {
+    // Storage unavailable or full: the answer just won't be kept when changing tabs.
+  }
+}
+
+export function clearLastExchanges(): void {
+  try {
+    Object.keys(sessionStorage)
+      .filter((key) => key.startsWith(EXCHANGE_PREFIX))
+      .forEach((key) => sessionStorage.removeItem(key));
+  } catch {
+    // Nothing to clear.
   }
 }
 

@@ -44,3 +44,6 @@ desktop.ini
 
 # Assistant evaluation reports (model answers on test data)
 backend/evals/results/
+
+# others
+docs/es/*

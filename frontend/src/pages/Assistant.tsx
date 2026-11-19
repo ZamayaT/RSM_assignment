@@ -13,14 +13,16 @@ import {
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
-import { api, ApiError, type AssistantToolCall, type ChatMessage } from "../api";
+import { api, ApiError, loadLastExchange, saveLastExchange, type AssistantToolCall, type ChatMessage } from "../api";
 import { SHOW_ASSISTANT_TOOLS } from "../config";
+import { useSession } from "../session";
 
 const MAX_SENT = 20; // the backend accepts at most this many messages per question
 
 interface Turn extends ChatMessage {
   toolCalls?: AssistantToolCall[];
   incomplete?: boolean;
+  restored?: boolean; // the last exchange of an earlier visit: shown, but never sent to the model
 }
 
 const EXAMPLES = [
@@ -68,9 +70,21 @@ function ToolsUsed({ calls }: { calls: AssistantToolCall[] }) {
   );
 }
 
+// The last question and answer kept for this user and trip (sessionStorage), shown again when the tab is reopened.
+function restoredTurns(userId: string | undefined, tripId: string): Turn[] {
+  const last = userId ? loadLastExchange(userId, tripId) : null;
+  if (!last) return [];
+  return [
+    { role: "user", content: last.question, restored: true },
+    { role: "assistant", content: last.answer, toolCalls: last.toolCalls, incomplete: last.incomplete, restored: true },
+  ];
+}
+
 export default function Assistant() {
   const { id = "" } = useParams();
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const { user } = useSession();
+  const userId = user?.id;
+  const [turns, setTurns] = useState<Turn[]>(() => restoredTurns(userId, id));
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ text: string; code: string } | null>(null);
@@ -78,8 +92,15 @@ export default function Assistant() {
   const bottom = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    api.getTrip(id).catch((e: ApiError) => setLost(e.status === 404 ? "Trip not found." : e.message));
-  }, [id]);
+    setTurns(restoredTurns(userId, id));
+  }, [userId, id]);
+
+  useEffect(() => {
+    api.getTrip(id).catch((e: ApiError) => {
+      setLost(e.status === 404 ? "Trip not found." : e.message);
+      if (e.status === 404 && userId) saveLastExchange(userId, id, null); // no access any more: forget the answer
+    });
+  }, [id, userId]);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end" });
@@ -88,7 +109,8 @@ export default function Assistant() {
   async function send(text: string) {
     const question = text.trim();
     if (!question || busy) return;
-    const next: Turn[] = [...turns, { role: "user", content: question }];
+    // A restored exchange is replaced by the new one and is never part of what the model receives.
+    const next: Turn[] = [...turns.filter((t) => !t.restored), { role: "user", content: question }];
     setTurns(next);
     setInput("");
     setError(null);
@@ -97,6 +119,8 @@ export default function Assistant() {
       const history = next.slice(-MAX_SENT).map((t) => ({ role: t.role, content: t.content }));
       const answer = await api.askAssistant(id, history);
       setTurns([...next, { role: "assistant", content: answer.reply, toolCalls: answer.toolCalls, incomplete: answer.incomplete }]);
+      if (userId)
+        saveLastExchange(userId, id, { question, answer: answer.reply, toolCalls: answer.toolCalls, incomplete: answer.incomplete });
     } catch (e) {
       const err = e as ApiError;
       setError({ text: err.message, code: err.code });
@@ -135,6 +159,11 @@ export default function Assistant() {
       )}
 
       <Stack spacing={2} aria-live="polite">
+        {turns.some((t) => t.restored) && (
+          <Typography variant="caption" color="text.secondary">
+            Your last question and answer from this session. New questions start fresh: the assistant does not see them.
+          </Typography>
+        )}
         {turns.map((t, n) => (
           <Box key={n} sx={{ alignSelf: t.role === "user" ? "flex-end" : "flex-start", maxWidth: "92%" }}>
             <Typography variant="caption" color="text.secondary">{t.role === "user" ? "You" : "Assistant"}</Typography>

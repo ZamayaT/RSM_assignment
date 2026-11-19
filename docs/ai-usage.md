@@ -24,7 +24,7 @@ Workflow: the developer defines a change, approves the plan, then says "Implemen
 ## What is not evidence
 
 - The assistant tests use a **scripted** model; they prove our code (tool execution, step limit, permissions, error mapping, nothing written), not that a real model recommends well.
-- The model-dependent evaluation (`python -m evals.assistant`) needs the developer's API key and was **not run by the AI agent**; no pass rate is claimed here. Run it with the command in the README to get one; free models are inconsistent, so use `--runs 3`.
+- The model-dependent evaluation (`python -m evals.assistant`) was run **once** (2026-11-19, `nvidia/nemotron-3-ultra-550b-a55b:free`, 1 run per scenario): 4 of 4 graded runs passed (cheapest-within-budget, nothing-suitable, provider-down, one-supplier-down), and the other 3 scenarios (book-request, itinerary-and-budget, over-budget) were **not evaluated** because the free daily limit (`free-models-per-day`) was reached. This is a small, single-run sample, not a pass rate for the whole suite; free models are inconsistent, so rerun it with `--runs 3` after the limit resets.
 - The frontend was not tested automatically, and AI-written UI was checked only by manual use.
 
 ## Risks of AI-written code that were handled

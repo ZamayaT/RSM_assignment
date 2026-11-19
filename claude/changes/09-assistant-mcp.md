@@ -14,7 +14,7 @@ A participant (organizer, editor or viewer) opens an **Assistant** tab in a trip
 
 ## Out of scope
 - Any tool that changes data (itinerary, bookings, participants, documents): none is built, so none can be called.
-- Saving conversations (a documented limit: the chat lives in the open tab and is cleared on reload), streaming tokens, voice, attachments, several trips in one chat.
+- Saving conversations on the server (a documented limit: the chat lives in the open tab; later extension, task 7.1: the last question and answer are also kept in the browser's `sessionStorage`), streaming tokens, voice, attachments, several trips in one chat.
 - Support for external MCP clients as a goal (the endpoint speaks standard MCP over HTTP and can be inspected with the README commands, but nothing more is promised), stdio transport, MCP resources and prompts (tools only).
 - Fine-tuning, embeddings, vector search, caching of model answers, a custom ranking algorithm: the model reasons over what the tools return.
 - A paid or hosted evaluation service; an LLM-as-judge (the model-dependent checks are rules over the tool calls and the answer's text).
@@ -72,6 +72,9 @@ Official Python `mcp` SDK, HTTP transport, mounted inside the backend (one place
 - [x] 6.1 MCP tests: the tool list is exactly the read-only set and has no modifying name; `401` without or with a wrong token; every participant (including a viewer) can read; a non-participant and a token of another user get a "not found" tool error on every tool; a trip id alone grants nothing; tool results equal the REST responses; `search_options` shows `partial` and `empty`; `mcp` and `assistant` import no write module.
 - [x] 6.2 Assistant tests with a scripted LLM (testing our loop, labeled as such): tools are executed and fed back, the step limit stops a loop, a tool failure is shown as failed and reaches the model, a call to a trip other than the conversation's is rejected, unknown or malformed tool calls do not crash, each model error maps to its status and code, and the endpoint's `401`, `404` and `503 ASSISTANT_NOT_CONFIGURED`; a viewer can ask; the assistant changes nothing in the database.
 - [x] 6.3 Update `README.md` (get a free OpenRouter key, `.env` variables, the probe, using the assistant, inspecting `/mcp` with copy-paste commands, running both evaluations and what they cost, the data-sent-to-the-provider note, the limits) and `PROJECT.md` (resolve section 13 and the LLM row of 8.1, 4.11 wording, FR coverage, section 11 testing wording); only what is implemented.
+
+### Later extension
+- [x] 7.1 Keep the last question and answer (with its tools list) in the browser's `sessionStorage`, per user and trip: restored when the Assistant tab is reopened (for example after looking at Search), shown as the last exchange, never sent to the model as context, replaced by the next answer, removed on sign-out or when the trip can no longer be read. Frontend only (`api.ts`, `pages/Assistant.tsx`); nothing stored on the server.
 
 ## Acceptance criteria
 - In the browser, a participant of a trip opens **Assistant**, asks for the cheapest accommodation within the remaining budget, and gets an answer that cites real offers from the Search results, relates them to the trip's dates and budget and their restrictions, and (with the default `VITE_SHOW_ASSISTANT_TOOLS=true`) lists the tools it used with their arguments and results; setting it to `false` hides that list, and the answer itself still states any failure or empty result.
