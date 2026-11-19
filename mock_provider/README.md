@@ -32,13 +32,15 @@ Defined in `mock_provider/app/fixtures.py`. They are loaded on startup when ther
 |---|---|
 | Destinations (case-insensitive) | `Lisbon`, `Paris`, `Rome` |
 | Transport origins (case-insensitive) | `London`, `New York`, `Madrid` |
-| Suppliers | `supplier-a` (transport, accommodation), `supplier-b` (transport, accommodation, activity), `supplier-c` (accommodation, activity) |
+| Suppliers | `supplier-alamo` "Supplier Alamo" (transport, accommodation), `supplier-boots` "Supplier Boots" (transport, accommodation, activity), `supplier-croc` "Supplier Croc" (accommodation, activity) |
 | Categories | `transport`, `accommodation`, `activity` |
 
 - Each listing has one quote per party size: **1, 2 and 4 travelers**. A search matches the exact party size; when a listing has no quote for it, the smallest quote for a larger party is returned (3 travelers gets the 4-traveler offers; 5 or more gets nothing).
-- Offer ids look like `rome-activity-supplier-b-1-p2` (`<destination>-<category>-[<origin>-]<supplier>[-<n>]-p<travelers>`).
+- Offer ids look like `rome-activity-supplier-boots-1-p2` (`<destination>-<category>-[<origin>-]<supplier>[-<activity number>][-s<n>]-p<travelers>`): the ones without `-s<n>` are the base catalogue (stable ids), the ones with `-s<n>` are repeated listings on later days.
+- Activities per destination: the two base ones plus six more: a **Museum tour**, a **Food places tour** and four other tours (for example a cooking class, a boat ride or a bike ride).
 - Prices are USD totals for the whole party and the whole segment, stay or activity. Accommodation is three nights; transport is one way.
-- Dates are destination-local and start at least 21 days after the mock clock's "today". Offers carry the destination's timezone offset.
+- Dates are destination-local. The base catalogue starts at least 21 days after the mock clock's "today"; the repeated listings fill every day from the day after "today" until 31 January 2027, so November 2026, December 2026 and January 2027 all have transport, stays and activities (about 3,000 offers in total). If the clock is past that window (for example frozen in 2030), the next 92 days are filled instead. Offers carry the destination's timezone offset.
+- Repeated listings follow the season: 20 December to 3 January costs 25% more, the rest of December 10% more, January 10% less; the base catalogue keeps its original prices.
 - Quote validity cycles through 30 minutes, 6 hours, 1 day and 3 days; every 11th offer is sold out (`available=false`). Revisions start at `r1`.
 
 ## Clock
@@ -83,13 +85,13 @@ Start each recipe from a clean state:
 curl -s -X POST $M/control/reset
 ```
 
-The booking recipes use the fixture offer `rome-activity-supplier-b-1-p2` (revision `r1`, price `107.64`). If a booking answers `OFFER_CHANGED` right after a reset, its 30-minute quote may have expired: read the offer with `curl -s $M/v1/offers/rome-activity-supplier-b-1-p2 -H "$T"` and use the revision it shows.
+The booking recipes use the fixture offer `rome-activity-supplier-boots-1-p2` (revision `r1`, price `107.64`). If a booking answers `OFFER_CHANGED` right after a reset, its 30-minute quote may have expired: read the offer with `curl -s $M/v1/offers/rome-activity-supplier-boots-1-p2 -H "$T"` and use the revision it shows.
 
 Reusable pieces:
 
 ```bash
 SEARCH='{"category":"accommodation","destination":"Lisbon","startsOn":"2000-01-01","endsOn":"2100-01-01","travelers":2}'
-BOOK='{"clientReference":"demo-1","offerId":"rome-activity-supplier-b-1-p2","expectedOfferRevision":"r1","expectedPrice":{"amount":"107.64","currency":"USD"}}'
+BOOK='{"clientReference":"demo-1","offerId":"rome-activity-supplier-boots-1-p2","expectedOfferRevision":"r1","expectedPrice":{"amount":"107.64","currency":"USD"}}'
 ```
 
 ### Complete search
@@ -101,13 +103,13 @@ curl -s -X POST $M/v1/offers/search -H "$T" -H "$J" -d "$SEARCH"
 ### Supplier down (partial result, then total failure)
 
 ```bash
-curl -s -X PUT $M/control/suppliers/supplier-b/failure -H "$J" -d '{"mode":"unavailable"}'
-curl -s -X POST $M/v1/offers/search -H "$T" -H "$J" -d "$SEARCH"   # 200, "partial": true, a warning for supplier-b
-curl -s -X PUT $M/control/suppliers/supplier-a/failure -H "$J" -d '{"mode":"unavailable"}'
-curl -s -X PUT $M/control/suppliers/supplier-c/failure -H "$J" -d '{"mode":"unavailable"}'
+curl -s -X PUT $M/control/suppliers/supplier-boots/failure -H "$J" -d '{"mode":"unavailable"}'
+curl -s -X POST $M/v1/offers/search -H "$T" -H "$J" -d "$SEARCH"   # 200, "partial": true, a warning for supplier-boots
+curl -s -X PUT $M/control/suppliers/supplier-alamo/failure -H "$J" -d '{"mode":"unavailable"}'
+curl -s -X PUT $M/control/suppliers/supplier-croc/failure -H "$J" -d '{"mode":"unavailable"}'
 curl -s -i -X POST $M/v1/offers/search -H "$T" -H "$J" -d "$SEARCH"   # 503 PROVIDER_UNAVAILABLE
 # revert
-for s in supplier-a supplier-b supplier-c; do curl -s -X DELETE $M/control/suppliers/$s/failure; done
+for s in supplier-alamo supplier-boots supplier-croc; do curl -s -X DELETE $M/control/suppliers/$s/failure; done
 ```
 
 ### Supplier timeout
@@ -117,18 +119,18 @@ Same as above with `{"mode":"timeout"}`: the search warning code is `PROVIDER_TI
 ### Rate limit
 
 ```bash
-curl -s -X PUT $M/control/suppliers/supplier-b/failure -H "$J" -d '{"mode":"rate_limited","retryAfterSeconds":5}'
-SB='{"category":"accommodation","destination":"Lisbon","startsOn":"2000-01-01","endsOn":"2100-01-01","travelers":2,"providerId":"supplier-b"}'
+curl -s -X PUT $M/control/suppliers/supplier-boots/failure -H "$J" -d '{"mode":"rate_limited","retryAfterSeconds":5}'
+SB='{"category":"accommodation","destination":"Lisbon","startsOn":"2000-01-01","endsOn":"2100-01-01","travelers":2,"providerId":"supplier-boots"}'
 curl -s -i -X POST $M/v1/offers/search -H "$T" -H "$J" -d "$SB"   # 429 RATE_LIMITED, Retry-After: 5
-curl -s -X DELETE $M/control/suppliers/supplier-b/failure
+curl -s -X DELETE $M/control/suppliers/supplier-boots/failure
 ```
 
 ### Slow response
 
 ```bash
-curl -s -X PUT $M/control/suppliers/supplier-b/latency -H "$J" -d '{"milliseconds":3000}'
-time curl -s $M/v1/offers/rome-activity-supplier-b-1-p2 -H "$T" > /dev/null   # about 3 seconds
-curl -s -X PUT $M/control/suppliers/supplier-b/latency -H "$J" -d '{"milliseconds":0}'
+curl -s -X PUT $M/control/suppliers/supplier-boots/latency -H "$J" -d '{"milliseconds":3000}'
+time curl -s $M/v1/offers/rome-activity-supplier-boots-1-p2 -H "$T" > /dev/null   # about 3 seconds
+curl -s -X PUT $M/control/suppliers/supplier-boots/latency -H "$J" -d '{"milliseconds":0}'
 ```
 
 To simulate a client that times out and cannot tell whether a booking was accepted, set the latency above the client's timeout, send the booking, then look it up with `GET /v1/bookings/by-reference/{clientReference}` or repeat the request with the same `Idempotency-Key`.
@@ -136,7 +138,7 @@ To simulate a client that times out and cannot tell whether a booking was accept
 ### Price change
 
 ```bash
-curl -s -X POST $M/control/offers/rome-activity-supplier-b-1-p2 -H "$J" -d '{"price":"150.00"}'   # revision becomes r2
+curl -s -X POST $M/control/offers/rome-activity-supplier-boots-1-p2 -H "$J" -d '{"price":"150.00"}'   # revision becomes r2
 curl -s -i -X POST $M/v1/bookings -H "$T" -H "$J" -H "Idempotency-Key: price-1" -d "$BOOK"        # 409 OFFER_CHANGED
 ```
 
@@ -145,9 +147,9 @@ Booking again with `"expectedOfferRevision":"r2"` and `"amount":"150.00"` succee
 ### Sold out
 
 ```bash
-curl -s -X POST $M/control/offers/rome-activity-supplier-b-1-p2 -H "$J" -d '{"available":false}'
+curl -s -X POST $M/control/offers/rome-activity-supplier-boots-1-p2 -H "$J" -d '{"available":false}'
 curl -s -i -X POST $M/v1/bookings -H "$T" -H "$J" -H "Idempotency-Key: soldout-1" -d "$BOOK"      # 409 OFFER_UNAVAILABLE
-curl -s -X POST $M/control/offers/rome-activity-supplier-b-1-p2 -H "$J" -d '{"available":true}'   # restore
+curl -s -X POST $M/control/offers/rome-activity-supplier-boots-1-p2 -H "$J" -d '{"available":true}'   # restore
 ```
 
 ### Expired quote
@@ -155,7 +157,7 @@ curl -s -X POST $M/control/offers/rome-activity-supplier-b-1-p2 -H "$J" -d '{"av
 ```bash
 curl -s -X POST $M/control/clock -H "$J" -d '{"advanceSeconds":259200}'                           # 3 days
 curl -s -i -X POST $M/v1/bookings -H "$T" -H "$J" -H "Idempotency-Key: expired-1" -d "$BOOK"      # 409 OFFER_CHANGED
-curl -s $M/v1/offers/rome-activity-supplier-b-1-p2 -H "$T"                                        # refreshed: new revision and validUntil
+curl -s $M/v1/offers/rome-activity-supplier-boots-1-p2 -H "$T"                                        # refreshed: new revision and validUntil
 curl -s -X POST $M/control/clock -H "$J" -d '{"realTime":true}'
 ```
 

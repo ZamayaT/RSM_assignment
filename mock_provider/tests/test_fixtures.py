@@ -16,7 +16,7 @@ def test_catalogue_covers_destinations_origins_categories_and_suppliers():
     offers = build_offers(NOW)
     assert {o["destination"] for o in offers} == {"Lisbon", "Paris", "Rome"}
     assert {o["origin"] for o in offers if o["category"] == "transport"} == {"London", "New York", "Madrid"}
-    assert {o["provider_id"] for o in offers} == {"supplier-a", "supplier-b", "supplier-c"}
+    assert {o["provider_id"] for o in offers} == {"supplier-alamo", "supplier-boots", "supplier-croc"}
 
     suppliers = defaultdict(set)
     for o in offers:
@@ -69,3 +69,52 @@ def test_seed_if_empty_does_not_duplicate():
     assert seed_if_empty() is False
     with Session(get_engine()) as session:
         assert session.scalar(select(func.count()).select_from(Offer)) == before
+
+
+def test_catalogue_fills_november_december_and_january():
+    clock = datetime(2026, 11, 19, 9, 0, tzinfo=timezone.utc)
+    offers = build_offers(clock)
+    months = defaultdict(int)
+    for o in offers:
+        months[o["starts_at"].strftime("%Y-%m")] += 1
+    assert {"2026-11", "2026-12", "2027-01"} <= set(months)
+    assert all(count > 100 for count in months.values())
+    assert min(o["starts_at"] for o in offers).date().isoformat() >= "2026-11-20"
+    assert max(o["starts_at"] for o in offers).date().isoformat() <= "2027-02-01"
+    # every category has offers in every month, so a trip in any of those months finds options
+    for category in ("transport", "accommodation", "activity"):
+        assert {o["starts_at"].strftime("%Y-%m") for o in offers if o["category"] == category} >= {"2026-11", "2026-12", "2027-01"}
+
+
+def test_a_clock_past_the_window_gets_the_next_months_instead():
+    later = datetime(2031, 6, 1, 9, 0, tzinfo=timezone.utc)
+    offers = build_offers(later)
+    assert min(o["starts_at"] for o in offers) > later
+    assert (max(o["starts_at"] for o in offers) - later).days <= 100
+
+
+def test_museum_food_and_other_activities_exist_for_every_destination():
+    offers = build_offers(NOW)
+    for destination in ("Lisbon", "Paris", "Rome"):
+        titles = {o["title"] for o in offers if o["destination"] == destination and o["category"] == "activity"}
+        assert any(t.startswith("Museum tour") for t in titles)
+        assert any(t.startswith("Food places tour") for t in titles)
+        assert len(titles) >= 8  # the two base activities, museum, food and other tours
+
+
+def test_base_offer_ids_and_prices_stay_stable():
+    by_id = {o["id"]: o for o in build_offers(NOW)}
+    assert by_id["rome-activity-supplier-boots-1-p2"]["price_amount"] == Decimal("107.64")
+    assert by_id["lisbon-accommodation-supplier-alamo-p2"]["title"] == "3-night stay in Lisbon (Supplier Alamo)"
+
+
+def test_season_changes_the_price_of_repeated_listings():
+    from datetime import date
+
+    from app.fixtures import season_factor
+
+    assert season_factor(date(2026, 11, 25)) == Decimal("1.00")
+    assert season_factor(date(2026, 12, 10)) == Decimal("1.10")
+    assert season_factor(date(2026, 12, 24)) == Decimal("1.25")
+    assert season_factor(date(2027, 1, 2)) == Decimal("1.25")
+    assert season_factor(date(2027, 1, 20)) == Decimal("0.90")

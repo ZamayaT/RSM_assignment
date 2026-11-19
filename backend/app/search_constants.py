@@ -2,4 +2,4 @@
 
 CATEGORIES = ("transport", "accommodation", "activity")
 ORIGINS = ("London", "New York", "Madrid")
-SUPPLIERS = ("supplier-a", "supplier-b", "supplier-c")
+SUPPLIERS = ("supplier-alamo", "supplier-boots", "supplier-croc")

@@ -46,6 +46,7 @@ class Case:
     expect_error: str | None = None  # an ApiError code (the application refuses or the provider fails)
     min_offers: int = 0
     must_include: tuple[str, ...] = ()  # offer ids that exist in the fixtures
+    title_prefixes: tuple[str, ...] = ()  # each must start the title of at least one offer (kinds of activity)
     failing_suppliers: dict[str, str] = field(default_factory=dict)  # supplier -> failure mode
     checks: tuple[Callable[[dict, Any], str | None], ...] = ()  # (query, offer) -> problem text or None
 
@@ -107,7 +108,7 @@ CASES = [
         {"category": "accommodation", "destination": "Lisbon"},
         expect_state="complete",
         min_offers=3,
-        must_include=("lisbon-accommodation-supplier-a-p2", "lisbon-accommodation-supplier-b-p2", "lisbon-accommodation-supplier-c-p2"),
+        must_include=("lisbon-accommodation-supplier-alamo-p2", "lisbon-accommodation-supplier-boots-p2", "lisbon-accommodation-supplier-croc-p2"),
         checks=(*BASE, fits_party, inside_window),
     ),
     Case(
@@ -116,7 +117,7 @@ CASES = [
         {"category": "transport", "destination": "Paris", "origin": "London"},
         expect_state="complete",
         min_offers=2,
-        must_include=("paris-transport-london-supplier-a-p2", "paris-transport-london-supplier-b-p2"),
+        must_include=("paris-transport-london-supplier-alamo-p2", "paris-transport-london-supplier-boots-p2"),
         checks=(*BASE, from_origin, fits_party, inside_window),
     ),
     Case(
@@ -125,7 +126,7 @@ CASES = [
         {"category": "activity", "destination": "Rome"},
         expect_state="complete",
         min_offers=4,
-        must_include=("rome-activity-supplier-b-1-p2", "rome-activity-supplier-c-2-p2"),
+        must_include=("rome-activity-supplier-boots-1-p2", "rome-activity-supplier-croc-2-p2"),
         checks=(*BASE, fits_party, inside_window),
     ),
     Case(
@@ -139,7 +140,7 @@ CASES = [
     Case(
         "one-supplier-only",
         "limiting the search to one supplier",
-        {"category": "accommodation", "destination": "Paris", "providerId": "supplier-b"},
+        {"category": "accommodation", "destination": "Paris", "providerId": "supplier-boots"},
         expect_state="complete",
         min_offers=1,
         checks=(*BASE, only_supplier),
@@ -152,19 +153,19 @@ CASES = [
     ),
     Case(
         "one-supplier-down-is-partial",
-        "supplier-b down: the other suppliers' offers are kept and the failure is reported",
+        "supplier-boots down: the other suppliers' offers are kept and the failure is reported",
         {"category": "accommodation", "destination": "Lisbon"},
         expect_state="partial",
         min_offers=2,
-        failing_suppliers={"supplier-b": "unavailable"},
-        checks=(*BASE, lambda q, o: None if o.providerId != "supplier-b" else f"{o.id}: offer from the failed supplier"),
+        failing_suppliers={"supplier-boots": "unavailable"},
+        checks=(*BASE, lambda q, o: None if o.providerId != "supplier-boots" else f"{o.id}: offer from the failed supplier"),
     ),
     Case(
         "every-supplier-down-is-an-error",
         "all accommodation suppliers down: a failed search, never an empty-looking success",
         {"category": "accommodation", "destination": "Lisbon"},
         expect_error="PROVIDER_UNAVAILABLE",
-        failing_suppliers={"supplier-a": "unavailable", "supplier-b": "unavailable", "supplier-c": "unavailable"},
+        failing_suppliers={"supplier-alamo": "unavailable", "supplier-boots": "unavailable", "supplier-croc": "unavailable"},
     ),
     Case(
         "destination-outside-the-trip-is-refused",
@@ -181,11 +182,47 @@ CASES = [
 ]
 
 
+# The catalogue spreads offers over November 2026 to January 2027 (from the day after the mock's "today"): every
+# month still ahead must return offers inside its own dates, for every kind of offer.
+for _year, _month in ((2026, 11), (2026, 12), (2027, 1)):
+    _first = max(date(_year, _month, 1), TODAY + timedelta(days=1))
+    _last = date(_year + (_month == 12), _month % 12 + 1, 1) - timedelta(days=1)
+    if (_last - _first).days < 7:
+        continue  # that month is (nearly) over: nothing to expect
+    _window = {"startsOn": _first, "endsOn": _last}
+    for _query, _min in (
+        ({"category": "accommodation", "destination": "Lisbon"}, 2),
+        ({"category": "transport", "destination": "Paris", "origin": "London"}, 2),
+        ({"category": "activity", "destination": "Rome"}, 3),
+    ):
+        CASES.append(
+            Case(
+                f"{_query['category']}-in-{_year}-{_month:02d}",
+                f"{_query['category']} offers exist between {_first} and {_last}",
+                {**_query, **_window},
+                expect_state="complete",
+                min_offers=_min,
+                checks=(*BASE, fits_party, inside_window),
+            )
+        )
+
+CASES.append(
+    Case(
+        "museum-and-food-tours",
+        "museum and food places tours are offered in Paris",
+        {"category": "activity", "destination": "Paris", "startsOn": TODAY + timedelta(days=1), "endsOn": TODAY + timedelta(days=45)},
+        expect_state="complete",
+        title_prefixes=("Museum tour", "Food places tour"),
+        checks=(*BASE, fits_party, inside_window),
+    )
+)
+
+
 # ---- runner ----------------------------------------------------------------------------------------------
 
 
 def set_failures(modes: dict[str, str]) -> None:
-    for supplier in ("supplier-a", "supplier-b", "supplier-c"):
+    for supplier in ("supplier-alamo", "supplier-boots", "supplier-croc"):
         if supplier in modes:
             httpx.put(f"{MOCK}/control/suppliers/{supplier}/failure", json={"mode": modes[supplier]}, timeout=10).raise_for_status()
         else:
@@ -214,6 +251,9 @@ def run_case(case: Case) -> list[str]:
         problems.append(f"{len(result.offers)} offer(s), expected at least {case.min_offers}")
     ids = {o.id for o in result.offers}
     problems += [f"known offer {offer_id} is missing" for offer_id in case.must_include if offer_id not in ids]
+    problems += [
+        f"no offer titled '{prefix}...'" for prefix in case.title_prefixes if not any(o.title.startswith(prefix) for o in result.offers)
+    ]
     if case.expect_state == "partial":
         warned = {w.providerId for w in result.warnings}
         if warned != set(case.failing_suppliers):

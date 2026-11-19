@@ -85,42 +85,42 @@ def test_moving_the_clock_expires_quotes(make_offer):
 # ---- supplier failures and latency ------------------------------------------------------------------
 
 def test_supplier_failure_can_be_set_and_reverted():
-    assert client.put("/control/suppliers/supplier-b/failure", json={"mode": "timeout"}).status_code == 204
+    assert client.put("/control/suppliers/supplier-boots/failure", json={"mode": "timeout"}).status_code == 204
     body = _search_lisbon().json()
     assert body["partial"] is True and body["warnings"][0]["code"] == "PROVIDER_TIMEOUT"
-    assert client.get("/control/state").json()["supplierFailures"]["supplier-b"]["mode"] == "timeout"
+    assert client.get("/control/state").json()["supplierFailures"]["supplier-boots"]["mode"] == "timeout"
 
-    assert client.delete("/control/suppliers/supplier-b/failure").status_code == 204
+    assert client.delete("/control/suppliers/supplier-boots/failure").status_code == 204
     body = _search_lisbon().json()
-    assert body["partial"] is False and {o["providerId"] for o in body["offers"]} >= {"supplier-b"}
+    assert body["partial"] is False and {o["providerId"] for o in body["offers"]} >= {"supplier-boots"}
 
 
 def test_rate_limited_failure_carries_retry_after():
-    client.put("/control/suppliers/supplier-a/failure", json={"mode": "rate_limited", "retryAfterSeconds": 9})
+    client.put("/control/suppliers/supplier-alamo/failure", json={"mode": "rate_limited", "retryAfterSeconds": 9})
     body = {"category": "accommodation", "destination": "Lisbon", "startsOn": "2000-01-01", "endsOn": "2100-01-01",
-            "travelers": 2, "providerId": "supplier-a"}
+            "travelers": 2, "providerId": "supplier-alamo"}
     response = client.post("/v1/offers/search", json=body, headers=AUTH)
     assert response.status_code == 429 and response.headers["Retry-After"] == "9"
 
 
 def test_invalid_supplier_control_requests():
     assert client.put("/control/suppliers/nope/failure", json={"mode": "unavailable"}).status_code == 404
-    assert client.put("/control/suppliers/supplier-a/failure", json={"mode": "explode"}).status_code == 400
-    assert client.put("/control/suppliers/supplier-a/failure", json={"mode": "unavailable", "retryAfterSeconds": 0}
+    assert client.put("/control/suppliers/supplier-alamo/failure", json={"mode": "explode"}).status_code == 400
+    assert client.put("/control/suppliers/supplier-alamo/failure", json={"mode": "unavailable", "retryAfterSeconds": 0}
                       ).status_code == 400
     assert client.delete("/control/suppliers/nope/failure").status_code == 404
-    assert client.put("/control/suppliers/supplier-a/latency", json={"milliseconds": -1}).status_code == 400
+    assert client.put("/control/suppliers/supplier-alamo/latency", json={"milliseconds": -1}).status_code == 400
 
 
 def test_latency_slows_responses_until_removed(make_offer):
-    offer_id = make_offer(provider_id="supplier-c")
-    client.put("/control/suppliers/supplier-c/latency", json={"milliseconds": 300})
-    assert client.get("/control/state").json()["supplierLatencyMs"] == {"supplier-c": 300}
+    offer_id = make_offer(provider_id="supplier-croc")
+    client.put("/control/suppliers/supplier-croc/latency", json={"milliseconds": 300})
+    assert client.get("/control/state").json()["supplierLatencyMs"] == {"supplier-croc": 300}
     started = time.monotonic()
     client.get(f"/v1/offers/{offer_id}", headers=AUTH)
     assert time.monotonic() - started >= 0.3
 
-    client.put("/control/suppliers/supplier-c/latency", json={"milliseconds": 0})
+    client.put("/control/suppliers/supplier-croc/latency", json={"milliseconds": 0})
     started = time.monotonic()
     client.get(f"/v1/offers/{offer_id}", headers=AUTH)
     assert time.monotonic() - started < 0.3
@@ -215,20 +215,20 @@ def test_terminal_booking_cannot_be_resolved_again(make_offer):
 def test_reset_clears_data_and_settings_and_reloads_fixtures(make_offer):
     offer_id = make_offer()
     assert _book(offer_id).status_code == 201
-    client.put("/control/suppliers/supplier-a/failure", json={"mode": "unavailable"})
-    client.put("/control/suppliers/supplier-a/latency", json={"milliseconds": 100})
+    client.put("/control/suppliers/supplier-alamo/failure", json={"mode": "unavailable"})
+    client.put("/control/suppliers/supplier-alamo/latency", json={"milliseconds": 100})
     client.put("/control/booking-outcomes", json={"outcome": "failed"})
     client.post("/control/clock", json={"frozenAt": "2030-01-15T09:00:00Z"})
 
     result = client.post("/control/reset")
-    assert result.status_code == 200 and result.json()["offersLoaded"] == 117
+    assert result.status_code == 200 and result.json()["offersLoaded"] > 117  # the base catalogue plus the repeated listings
     state = client.get("/control/state").json()
     assert state["supplierFailures"] == {} and state["supplierLatencyMs"] == {}
     assert state["nextBookingOutcomes"] == [] and state["clock"]["frozen"] is False
     assert not result.json()["clock"]["frozen"]
     with Session(get_engine()) as session:
         assert session.scalar(select(func.count()).select_from(Booking)) == 0
-        assert session.scalar(select(func.count()).select_from(Offer)) == 117
+        assert session.scalar(select(func.count()).select_from(Offer)) == result.json()["offersLoaded"]
         assert session.get(Offer, offer_id) is None
 
 

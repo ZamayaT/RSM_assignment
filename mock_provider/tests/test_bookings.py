@@ -113,10 +113,10 @@ def test_request_validation_and_authentication(make_offer):
 
 
 def test_failing_supplier_blocks_new_bookings(make_offer):
-    offer_id = make_offer(provider_id="supplier-b")
-    failures.set_failure("supplier-b", "unavailable")
+    offer_id = make_offer(provider_id="supplier-boots")
+    failures.set_failure("supplier-boots", "unavailable")
     assert _post(_body(offer_id)).status_code == 503
-    failures.set_failure("supplier-b", "rate_limited", retry_after=4)
+    failures.set_failure("supplier-boots", "rate_limited", retry_after=4)
     response = _post(_body(offer_id))
     assert response.status_code == 429 and response.headers["Retry-After"] == "4"
     assert _count(offer_id) == 0

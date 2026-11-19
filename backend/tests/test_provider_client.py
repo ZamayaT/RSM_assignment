@@ -12,7 +12,7 @@ PARAMS = provider.SearchParams(
 
 OFFER = {
     "id": "o-1",
-    "providerId": "supplier-a",
+    "providerId": "supplier-alamo",
     "category": "accommodation",
     "title": "Stay",
     "description": "Three nights",
@@ -64,7 +64,7 @@ def test_partial_result_keeps_offers_and_warnings():
     body = {
         "offers": [OFFER],
         "partial": True,
-        "warnings": [{"providerId": "supplier-b", "code": "PROVIDER_UNAVAILABLE", "message": "down"}],
+        "warnings": [{"providerId": "supplier-boots", "code": "PROVIDER_UNAVAILABLE", "message": "down"}],
         "searchedAt": "2030-01-01T09:00:00Z",
     }
 
@@ -72,7 +72,7 @@ def test_partial_result_keeps_offers_and_warnings():
 
     assert result.partial is True
     assert len(result.offers) == 1
-    assert [w.providerId for w in result.warnings] == ["supplier-b"]
+    assert [w.providerId for w in result.warnings] == ["supplier-boots"]
 
 
 def test_400_carries_the_field_messages():

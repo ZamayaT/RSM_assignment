@@ -154,13 +154,13 @@ def test_a_tool_failure_is_shown_as_failed_and_reaches_the_model(client, trip):
 
 
 def test_a_partial_search_is_passed_through_as_partial(client, trip):
-    control("PUT", "/suppliers/supplier-a/failure", mode="unavailable")
+    control("PUT", "/suppliers/supplier-alamo/failure", mode="unavailable")
     llm = ScriptedLLM(use("search_options", SEARCH | {"trip_id": trip["id"]}), say("Supplier A was down."))
 
     result, _ = converse(client, trip["alice"], trip["id"], llm)
 
     assert result.tool_calls[-1].ok and result.tool_calls[-1].summary.startswith("partial:")
-    assert "supplier-a" in llm.requests[1][0][-1]["content"]
+    assert "supplier-alamo" in llm.requests[1][0][-1]["content"]
 
 
 def test_another_trip_is_rejected_even_if_the_user_can_read_it(client, trip):

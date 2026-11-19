@@ -13,7 +13,7 @@ from mcp.client.streamable_http import streamablehttp_client
 
 from app.assistant.llm_client import AssistantError
 
-MAX_RESULT_CHARS = 12000  # what the model gets back from one tool call (bounds tokens and cost)
+MAX_RESULT_CHARS = 16000  # what the model gets back from one tool call (bounds tokens and cost)
 
 
 @dataclass
@@ -80,7 +80,7 @@ class McpBridge:
             message = text.removeprefix(f"Error executing tool {name}: ") or "The tool failed."
             return ToolResult(False, message, None, message, _ms(started))
         data = result.structuredContent if result.structuredContent is not None else _parse(text)
-        body = json.dumps(data, ensure_ascii=False) if data is not None else text
+        body = json.dumps(data, ensure_ascii=False, separators=(",", ":")) if data is not None else text
         if len(body) > MAX_RESULT_CHARS:
             body = body[:MAX_RESULT_CHARS] + '..."[truncated: the result was too long]"'
         return ToolResult(True, body, data, None, _ms(started))

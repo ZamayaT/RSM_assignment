@@ -2,6 +2,10 @@
 export const stamp = (iso: string | null): string =>
   iso === null ? "—" : iso.replace("T", " ").replace(/\.\d+/, "").replace(/Z$/, " UTC");
 
+// "supplier-alamo" is shown as "Supplier Alamo" (the provider only sends the identifier).
+export const supplierName = (id: string): string =>
+  id.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+
 // Item status labels (what the itinerary and the budget show next to each item).
 export const STATUS_LABELS: Record<string, { label: string; color: "default" | "info" | "success" | "warning" | "error" }> = {
   estimate: { label: "Estimate", color: "default" },

@@ -254,7 +254,7 @@ A simple design reference: Montserrat (self-hosted with `@fontsource/montserrat`
 - Keeping every feature takes priority over matching the design exactly.
 
 **Login and test identities**
-Seeded users (e.g. `alice`, `bob`, `carol`). The start page lists them; selecting one calls a login endpoint that returns a token for that user. No passwords or registration. The same users are searchable by username when adding participants.
+Seeded users (`alice`, `bob`, `carol`, `daniela`). The start page lists them; selecting one calls a login endpoint that returns a token for that user. No passwords or registration. The same users are searchable by username when adding participants.
 
 **MCP: inside the backend, HTTP transport**
 A mounted `/mcp` HTTP endpoint in the FastAPI app, implemented with the official Python `mcp` SDK, in its own module. It shares the database and the permission code, so access is enforced in one place, and it calls only read services, which makes "no modification or booking tools" easy to verify. A separate process was rejected: it would duplicate permission logic and add deployment effort. The README provides copy-paste terminal commands to run and inspect it.
@@ -286,9 +286,10 @@ All amounts use `Decimal` with two fractional digits. Provider amounts are alrea
 
 **Mock dataset**
 - Destinations: Lisbon, Paris, Rome. Transport origins: London, New York, Madrid.
-- Three logical suppliers (`supplier-a`, `supplier-b`, `supplier-c`); each category is served by at least two, so partial results can be demonstrated in every category.
-- A few offers per destination and category, mixing availability, prices, and quote expiries.
-- Dates relative to the mock's clock, which can be frozen or advanced through configuration.
+- Three logical suppliers (`supplier-alamo`, `supplier-boots`, `supplier-croc`); each category is served by at least two, so partial results can be demonstrated in every category.
+- About 3,000 offers: a base catalogue with stable ids plus repeated listings that fill the days from the day after the mock's "today" until 31 January 2027 (November 2026 to January 2027), with seasonal prices, eight activities per destination (including a museum tour and a food places tour), mixing availability, prices, and quote expiries.
+- Dates relative to the mock's clock (the repeated listings are limited to that window; a clock past it gets the next 92 days), which can be frozen or advanced through configuration.
+- Supplier identifiers `supplier-alamo`, `supplier-boots` and `supplier-croc`, shown in the application as Supplier Alamo, Supplier Boots and Supplier Croc.
 - Failure switches through mock-only control endpoints or configuration (never used by the application): supplier timeout, rate limit, price change, sold out, booking left pending, slow response.
 
 **Scheduling rules (simplified)**

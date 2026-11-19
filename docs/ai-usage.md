@@ -15,16 +15,16 @@ Workflow: the developer defines a change, approves the plan, then says "Implemen
 
 ## How the output was verified
 
-- **Tests**: `docker compose exec backend pytest` (342 tests) and `docker compose exec mock_provider pytest` (125), against a separate test database and the real mock over HTTP. They cover permissions on REST and MCP, optimistic locking, budget exactness, idempotent bookings and recovery, document jobs, search states and the read-only assistant layer.
+- **Tests**: `docker compose exec backend pytest` (344 tests) and `docker compose exec mock_provider pytest` (130), against a separate test database and the real mock over HTTP. They cover permissions on REST and MCP, optimistic locking, budget exactness, idempotent bookings and recovery, document jobs, search states and the read-only assistant layer.
 - **Static checks**: `ruff check .` in both Python services and `npm run typecheck` in the frontend.
-- **Deterministic evaluation**: `docker compose exec backend python -m evals.search` (10 cases, no model).
+- **Deterministic evaluation**: `docker compose exec backend python -m evals.search` (20 cases, no model).
 - **Developer review** of each plan and result, and manual use of the frontend (it has no automated tests).
-- Results of the checks above were run again at the end of change 10 and all passed.
+- Results of the checks above were run again at the end of changes 10 and 11 and all passed.
 
 ## What is not evidence
 
 - The assistant tests use a **scripted** model; they prove our code (tool execution, step limit, permissions, error mapping, nothing written), not that a real model recommends well.
-- The model-dependent evaluation (`python -m evals.assistant`) was run **once** (2026-11-19, `nvidia/nemotron-3-ultra-550b-a55b:free`, 1 run per scenario): 4 of 4 graded runs passed (cheapest-within-budget, nothing-suitable, provider-down, one-supplier-down), and the other 3 scenarios (book-request, itinerary-and-budget, over-budget) were **not evaluated** because the free daily limit (`free-models-per-day`) was reached. This is a small, single-run sample, not a pass rate for the whole suite; free models are inconsistent, so rerun it with `--runs 3` after the limit resets.
+- The model-dependent evaluation (`python -m evals.assistant`) was run **once** (2026-11-19, `nvidia/nemotron-3-ultra-550b-a55b:free`, 1 run per scenario): 4 of 4 graded runs passed (cheapest-within-budget, nothing-suitable, provider-down, one-supplier-down), and the other 3 scenarios (book-request, itinerary-and-budget, over-budget) were **not evaluated** because the free daily limit (`free-models-per-day`) was reached. That run used the earlier, smaller catalogue and an earlier search tool (before change 11 limited it to the 20 best offers), so it needs a rerun to say anything about the current data. It is a small, single-run sample, not a pass rate for the whole suite; free models are inconsistent, so rerun it with `--runs 3` after the limit resets.
 - The frontend was not tested automatically, and AI-written UI was checked only by manual use.
 
 ## Risks of AI-written code that were handled

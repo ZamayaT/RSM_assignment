@@ -127,7 +127,7 @@ def test_trips_and_logins_survive_an_engine_restart(client):
     run_seed()
 
     with TestClient(app) as restarted:
-        assert len(restarted.get("/auth/users").json()) == 3
+        assert len(restarted.get("/auth/users").json()) == 4
         listed = restarted.get("/trips", headers=headers)
         assert listed.status_code == 200
         assert [t["name"] for t in listed.json()] == ["Persisted"]

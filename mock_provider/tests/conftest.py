@@ -45,7 +45,7 @@ def make_offer():
 
     created: list[str] = []
 
-    def _make(provider_id="supplier-a", **overrides) -> str:
+    def _make(provider_id="supplier-alamo", **overrides) -> str:
         now = get_clock().now()
         offer_id = f"test-{uuid.uuid4().hex[:12]}"
         values = dict(

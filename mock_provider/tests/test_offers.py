@@ -53,7 +53,7 @@ def test_complete_search_returns_offers_from_all_suppliers():
     body = response.json()
     assert body["partial"] is False and body["warnings"] == []
     assert body["searchedAt"]
-    assert {o["providerId"] for o in body["offers"]} == {"supplier-a", "supplier-b", "supplier-c"}
+    assert {o["providerId"] for o in body["offers"]} == {"supplier-alamo", "supplier-boots", "supplier-croc"}
     for offer in body["offers"]:
         assert offer["category"] == "accommodation" and offer["destination"] == "Lisbon"
         assert offer["travelers"] == 2
@@ -70,16 +70,16 @@ def test_transport_requires_origin_and_matches_it_case_insensitively():
     response = _search(category="transport", origin="new YORK")
     offers = response.json()["offers"]
     assert offers and {o["origin"] for o in offers} == {"New York"}
-    assert {o["providerId"] for o in offers} == {"supplier-a", "supplier-b"}
+    assert {o["providerId"] for o in offers} == {"supplier-alamo", "supplier-boots"}
 
 
 def test_provider_id_limits_the_search():
-    offers = _search(providerId="supplier-b").json()["offers"]
-    assert offers and {o["providerId"] for o in offers} == {"supplier-b"}
+    offers = _search(providerId="supplier-boots").json()["offers"]
+    assert offers and {o["providerId"] for o in offers} == {"supplier-boots"}
 
 
 def test_supplier_without_the_category_returns_empty_complete_result():
-    body = _search(category="transport", origin="London", providerId="supplier-c").json()
+    body = _search(category="transport", origin="London", providerId="supplier-croc").json()
     assert body["offers"] == [] and body["partial"] is False
 
 
@@ -109,7 +109,7 @@ def test_offers_are_returned_in_destination_local_time():
 def test_party_without_exact_quote_gets_the_next_larger_quote():
     offers = _search(travelers=3).json()["offers"]
     assert offers and {o["travelers"] for o in offers} == {4}
-    assert {o["providerId"] for o in offers} == {"supplier-a", "supplier-b", "supplier-c"}
+    assert {o["providerId"] for o in offers} == {"supplier-alamo", "supplier-boots", "supplier-croc"}
 
 
 def test_party_larger_than_any_quote_gets_nothing():
@@ -148,38 +148,38 @@ def test_search_requires_a_token():
 # ---- search: supplier failures ----------------------------------------------------------------------
 
 def test_partial_result_lists_a_warning_for_each_failed_supplier():
-    failures.set_failure("supplier-b", "timeout")
-    failures.set_failure("supplier-c", "unavailable")
+    failures.set_failure("supplier-boots", "timeout")
+    failures.set_failure("supplier-croc", "unavailable")
     body = _search().json()
     assert body["partial"] is True
-    assert {o["providerId"] for o in body["offers"]} == {"supplier-a"}
+    assert {o["providerId"] for o in body["offers"]} == {"supplier-alamo"}
     assert {(w["providerId"], w["code"]) for w in body["warnings"]} == {
-        ("supplier-b", "PROVIDER_TIMEOUT"),
-        ("supplier-c", "PROVIDER_UNAVAILABLE"),
+        ("supplier-boots", "PROVIDER_TIMEOUT"),
+        ("supplier-croc", "PROVIDER_UNAVAILABLE"),
     }
 
 
 def test_all_suppliers_failing_is_503():
-    for supplier in ("supplier-a", "supplier-b", "supplier-c"):
+    for supplier in ("supplier-alamo", "supplier-boots", "supplier-croc"):
         failures.set_failure(supplier, "unavailable")
     response = _search()
     assert response.status_code == 503 and response.json()["code"] == "PROVIDER_UNAVAILABLE"
 
 
 def test_single_rate_limited_supplier_is_429_with_retry_after():
-    failures.set_failure("supplier-b", "rate_limited", retry_after=7)
-    response = _search(providerId="supplier-b")
+    failures.set_failure("supplier-boots", "rate_limited", retry_after=7)
+    response = _search(providerId="supplier-boots")
     assert response.status_code == 429 and response.json()["code"] == "RATE_LIMITED"
     assert response.headers["Retry-After"] == "7"
 
 
 def test_single_unavailable_supplier_is_503():
-    failures.set_failure("supplier-b", "unavailable")
-    assert _search(providerId="supplier-b").status_code == 503
+    failures.set_failure("supplier-boots", "unavailable")
+    assert _search(providerId="supplier-boots").status_code == 503
 
 
 def test_every_supplier_rate_limited_is_503_not_429():
-    for supplier in ("supplier-a", "supplier-b", "supplier-c"):
+    for supplier in ("supplier-alamo", "supplier-boots", "supplier-croc"):
         failures.set_failure(supplier, "rate_limited")
     assert _search().status_code == 503
 
@@ -223,7 +223,7 @@ def _insert_expired_offer(offer_id):
     with Session(get_engine()) as session:
         session.add(
             Offer(
-                id=offer_id, provider_id="supplier-a", category="activity", title="Expiry test", description="d",
+                id=offer_id, provider_id="supplier-alamo", category="activity", title="Expiry test", description="d",
                 destination="Rome", starts_at=now + timedelta(days=5), ends_at=now + timedelta(days=5, hours=2),
                 travelers=2, price_amount=Decimal("10.00"), currency="USD", revision="r1", available=True,
                 valid_until=now - timedelta(minutes=1), updated_at=now,
@@ -258,7 +258,7 @@ def test_search_refreshes_expired_quotes():
         now = get_clock().now()
         day = (now + timedelta(days=5)).astimezone(destination_tz("Rome")).date()
         offers = _search(
-            category="activity", destination="Rome", providerId="supplier-a",
+            category="activity", destination="Rome", providerId="supplier-alamo",
             startsOn=(day - timedelta(days=1)).isoformat(), endsOn=(day + timedelta(days=1)).isoformat(),
         ).json()["offers"]
         match = [o for o in offers if o["id"] == offer_id]
@@ -269,10 +269,10 @@ def test_search_refreshes_expired_quotes():
 
 
 def test_get_offer_of_failing_supplier_follows_the_failure_mode():
-    stored = _any_offer(provider_id="supplier-b")
-    failures.set_failure("supplier-b", "unavailable")
+    stored = _any_offer(provider_id="supplier-boots")
+    failures.set_failure("supplier-boots", "unavailable")
     assert client.get(f"/v1/offers/{stored.id}", headers=AUTH).status_code == 503
-    failures.set_failure("supplier-b", "rate_limited", retry_after=3)
+    failures.set_failure("supplier-boots", "rate_limited", retry_after=3)
     response = client.get(f"/v1/offers/{stored.id}", headers=AUTH)
     assert response.status_code == 429 and response.headers["Retry-After"] == "3"
 

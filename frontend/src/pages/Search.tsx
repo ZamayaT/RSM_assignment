@@ -26,7 +26,7 @@ import {
   type SearchResult,
   type Trip,
 } from "../api";
-import ConflictDialog, { type PendingChange } from "../ConflictDialog";import { restrictionsText, stamp } from "../format";
+import ConflictDialog, { type PendingChange } from "../ConflictDialog";import { restrictionsText, stamp, supplierName } from "../format";
 import { useTripWorkspace } from "../tripContext";
 
 type SortKey = "price" | "start" | "supplier";
@@ -91,7 +91,7 @@ export default function Search() {
   // Sends one add. Only the server's answer decides what the page says; nothing is assumed saved.
   async function addOffer(offer: Offer, version: number, fromDialog = false) {
     const change: PendingChange = {
-      description: `Add “${offer.title}” (${offer.providerId}) to the itinerary.`,
+      description: `Add “${offer.title}” (${supplierName(offer.providerId)}) to the itinerary.`,
       apply: (v) => api.addToItinerary(id, offer.id, v),
     };
     setAdding(offer.id);
@@ -188,7 +188,7 @@ export default function Search() {
             )}
             <TextField select label="Supplier" value={providerId} onChange={(e) => setProviderId(e.target.value)} fullWidth {...err("providerId")}>
               <MenuItem value="">Any supplier</MenuItem>
-              {options.suppliers.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              {options.suppliers.map((s) => <MenuItem key={s} value={s}>{supplierName(s)}</MenuItem>)}
             </TextField>
             <TextField label="From" type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth {...err("startsOn")} />
             <TextField label="To" type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} slotProps={{ inputLabel: { shrink: true } }} fullWidth {...err("endsOn")} />
@@ -216,7 +216,7 @@ export default function Search() {
         <Stack spacing={2}>
           {result.warnings.map((w) => (
             <Alert key={w.providerId} severity="warning">
-              Partial results — {w.message}
+              Partial results — {w.message.replace(w.providerId, supplierName(w.providerId))}
             </Alert>
           ))}
           {result.offers.length === 0 ? (
@@ -256,7 +256,7 @@ export default function Search() {
                           <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{o.description}</Typography>
                           <Typography variant="caption" sx={{ display: "block" }}>Restrictions: {restrictionsText(o.restrictions)}</Typography>
                         </TableCell>
-                        <TableCell>{o.providerId}</TableCell>
+                        <TableCell>{supplierName(o.providerId)}</TableCell>
                         <TableCell>{stamp(o.startsAt)} → {stamp(o.endsAt)}</TableCell>
                         <TableCell align="right">≈ {o.price.amount}</TableCell>
                         <TableCell>

@@ -35,7 +35,7 @@ A working mock of the external travel provider that implements `assignment/openA
 
 ### Clock and fixtures
 - [x] 2.1 Controllable clock: real time by default, optionally frozen or offset through configuration; every time-dependent rule uses it.
-- [x] 2.2 Fixture data: destinations Lisbon, Paris, Rome; origins London, New York, Madrid; suppliers `supplier-a`, `supplier-b`, `supplier-c`; a few offers per destination and category with varied prices, availability, and quote expiries; dates relative to the clock; seeded on startup when empty.
+- [x] 2.2 Fixture data: destinations Lisbon, Paris, Rome; origins London, New York, Madrid; suppliers `supplier-alamo`, `supplier-boots`, `supplier-croc`; a few offers per destination and category with varied prices, availability, and quote expiries; dates relative to the clock; seeded on startup when empty.
 
 ### Cross-cutting API behavior
 - [x] 3.1 Bearer-token authentication (demo tokens above); `401 UNAUTHORIZED` in the contract's error format with a `requestId`.

@@ -66,7 +66,7 @@ docker compose up --build -d
 | Backend API documentation | http://localhost:8000/docs |
 | Provider mock API documentation | http://localhost:4010/docs |
 
-The start page lists the seeded test users (`alice`, `bob`, `carol`). The backend creates them on startup if the database has none, and applies its migrations automatically when its container starts.
+The start page lists the seeded test users (`alice`, `bob`, `carol`, `daniela`). The backend creates the ones that are missing on startup (so a database made earlier gets `daniela` too), and applies its migrations automatically when its container starts.
 
 To log in, click a name. From there you can create a trip (name, destinations Lisbon/Paris/Rome, dates, travelers, budget in USD, notes), see it under **My trips**, open it, and edit it (**Edit Trip**). An open trip shows its general information on the left and its sections as tabs on the right (**Itinerary**, **Budget**, **Bookings**, **Documents**, **Search**, **Participants**, **Assistant**); each tab has its own URL, so a reload keeps the tab. Click the **Travel Planning Platform** title in the top bar to sign out and log in as someone else: each user sees only their own trips. If two people edit the same trip, the second save is refused with a "changed by someone else" message and nothing is overwritten; click **Reload latest** to continue from the newest version. Your login is kept in the browser, so reloading a trip page keeps you signed in; the start page (`http://localhost:5173/`) always shows the user list, and choosing a user there replaces the current session.
 
@@ -77,12 +77,12 @@ To search, open a trip and go to the **Search** tab. Choose a category (transpor
 To try a partial or failed search, run these in a terminal while the services are running, then search accommodation again in the browser:
 
 ```bash
-# one supplier down: the page shows the other suppliers' results and a warning for supplier-b
-curl -s -X PUT http://localhost:4010/control/suppliers/supplier-b/failure -H "Content-Type: application/json" -d '{"mode":"unavailable"}'
+# one supplier down: the page shows the other suppliers' results and a warning for supplier-boots
+curl -s -X PUT http://localhost:4010/control/suppliers/supplier-boots/failure -H "Content-Type: application/json" -d '{"mode":"unavailable"}'
 
 # all accommodation suppliers down: the page shows "The search failed" with a "Try again" button
-curl -s -X PUT http://localhost:4010/control/suppliers/supplier-a/failure -H "Content-Type: application/json" -d '{"mode":"unavailable"}'
-curl -s -X PUT http://localhost:4010/control/suppliers/supplier-c/failure -H "Content-Type: application/json" -d '{"mode":"unavailable"}'
+curl -s -X PUT http://localhost:4010/control/suppliers/supplier-alamo/failure -H "Content-Type: application/json" -d '{"mode":"unavailable"}'
+curl -s -X PUT http://localhost:4010/control/suppliers/supplier-croc/failure -H "Content-Type: application/json" -d '{"mode":"unavailable"}'
 
 # back to normal
 curl -s -X POST http://localhost:4010/control/reset
@@ -118,7 +118,7 @@ Each item then shows its status: *Estimate*, *Expired quote*, *Booking pending*,
 
 The `worker` service starts with the rest (`docker compose up --build`) and uses the same image as the backend. Its timings (how soon an unknown outcome is checked, how often a pending booking is read, when it is called unresolved) are the `BOOKING_*` values in `.env.example`; the defaults are fine.
 
-To try the difficult cases, run these while the services are running, then book an item in the browser (replace `OFFER_ID` with the item's offer id, shown by the search results or the itinerary API at http://localhost:8000/docs, and `supplier-a` with its supplier):
+To try the difficult cases, run these while the services are running, then book an item in the browser (replace `OFFER_ID` with the item's offer id, shown by the search results or the itinerary API at http://localhost:8000/docs, and `supplier-alamo` with its supplier):
 
 ```bash
 M=http://localhost:4010; J="Content-Type: application/json"
@@ -136,9 +136,9 @@ curl -s -X PUT $M/control/booking-outcomes -H "$J" -d '{"outcome":"pending","cou
 curl -s -X PUT $M/control/booking-outcomes -H "$J" -d '{"outcome":"failed","count":1}'
 
 # a lost response: the provider answers after the backend gave up, so the booking shows Unknown, then settles by itself
-curl -s -X PUT $M/control/suppliers/supplier-a/latency -H "$J" -d '{"milliseconds":8000}'
+curl -s -X PUT $M/control/suppliers/supplier-alamo/latency -H "$J" -d '{"milliseconds":8000}'
 # ...click Confirm booking, wait for "Unknown", then remove the delay:
-curl -s -X PUT $M/control/suppliers/supplier-a/latency -H "$J" -d '{"milliseconds":0}'
+curl -s -X PUT $M/control/suppliers/supplier-alamo/latency -H "$J" -d '{"milliseconds":0}'
 
 # back to normal
 curl -s -X POST $M/control/reset
@@ -206,7 +206,7 @@ TOKEN=$(curl -s -X POST localhost:8000/auth/login -H 'Content-Type: application/
 curl -s -X POST localhost:8000/mcp -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-The list is `get_trip`, `get_itinerary`, `get_budget`, `get_bookings` and `search_options`. To call one, replace the body with `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_trip","arguments":{"trip_id":"<TRIP_ID>"}}}` (the trip id is in the trip's URL). Without a token the answer is `401`; a trip you do not belong to answers "Trip not found." as a tool error.
+The list is `get_trip`, `get_itinerary`, `get_budget`, `get_bookings` and `search_options`. `search_options` returns at most 20 offers (available first, then cheapest) and says how many matched (`offersTotal`) and, when some were left out, a `note`; the Search tab always shows them all. To call one, replace the body with `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_trip","arguments":{"trip_id":"<TRIP_ID>"}}}` (the trip id is in the trip's URL). Without a token the answer is `401`; a trip you do not belong to answers "Trip not found." as a tool error.
 
 **Evaluations.** Two commands, kept apart:
 
@@ -231,7 +231,7 @@ docker compose exec mock_provider pytest
 
 The itinerary and booking tests (outcomes, idempotency, recovery by the worker, permissions and concurrency) also call the real mock, so the `backend` and `mock_provider` services must be running; after a `docker compose down` they are not, so start them again first. The booking tests run the worker's steps directly, with the waiting intervals set to zero, so they do not depend on the `worker` service or on waiting. The document tests (generation, snapshots, recovery after a stuck worker, lost or altered files, permissions) run the worker steps directly and write to a temporary folder, so they need no waiting and do not touch your stored documents. The search tests call the real provider mock over HTTP, so the `mock_provider` service must be running; they reset the mock before and after each test, which also clears any failures you set by hand. The MCP tests (tool list, authentication, permissions, tool results equal to the REST responses, search states) use the real provider mock. The assistant tests use a **scripted** model: they check our own code (tool execution, step limit, failures, the one-trip restriction, error codes, nothing written), never how well a real model answers; that is what `evals.assistant` is for. No test needs a key or calls a model. The backend tests create and use their own database (`<POSTGRES_DB>_test`, dropped and recreated on each run), so your trips and logins are never touched. All of them should pass; they cover login, validation, trips, visibility, versioning conflicts, concurrent saves and persistence across a restart.
 
-The provider mock stores its data in its own PostgreSQL schema (`mock_provider`) and applies its migrations automatically when its container starts. Its fixtures, demo tokens, clock, `/control` endpoints and copy-paste failure scenarios are documented in [`mock_provider/README.md`](mock_provider/README.md). On startup it also loads its fixture offers (Lisbon, Paris, Rome) if there are none.
+The provider mock stores its data in its own PostgreSQL schema (`mock_provider`) and applies its migrations automatically when its container starts. Its fixtures, demo tokens, clock, `/control` endpoints and copy-paste failure scenarios are documented in [`mock_provider/README.md`](mock_provider/README.md). On startup it also loads its fixture offers (Lisbon, Paris, Rome; about 3,000 offers from the day after today until 31 January 2027) if there are none. A mock database created before this catalogue keeps its old offers until you run `curl -s -X POST http://localhost:4010/control/reset` once.
 
 The mock's clock follows real time by default. To freeze it or shift it, uncomment `MOCK_CLOCK_FROZEN_AT` (for example `2030-01-15T09:00:00Z`) or `MOCK_CLOCK_OFFSET_SECONDS` in `.env`, then run `docker compose up -d mock_provider`. Fixture dates are generated relative to the clock when they are first loaded.
 

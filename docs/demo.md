@@ -1,6 +1,6 @@
 # Demo walkthrough
 
-About 15 minutes. Start with a clean mock and the stack running (`docker compose up --build -d`, README steps 4 to 6). Open http://localhost:5173. The seeded users are `alice`, `bob` and `carol`. The failure steps use the provider mock's control interface (`M=http://localhost:4010; J="Content-Type: application/json"`); reset it first and after each scenario:
+About 15 minutes. Start with a clean mock and the stack running (`docker compose up --build -d`, README steps 4 to 6). Open http://localhost:5173. The seeded users are `alice`, `bob`, `carol` and `daniela`. The failure steps use the provider mock's control interface (`M=http://localhost:4010; J="Content-Type: application/json"`); reset it first and after each scenario:
 
 ```bash
 M=http://localhost:4010; J="Content-Type: application/json"
@@ -36,21 +36,21 @@ Log in as `alice` in one window and `carol` (editor of the trip) in a private wi
 ## 4. Supplier failure (partial result)
 
 ```bash
-curl -s -X PUT $M/control/suppliers/supplier-b/failure -H "$J" -d '{"mode":"unavailable"}'
+curl -s -X PUT $M/control/suppliers/supplier-boots/failure -H "$J" -d '{"mode":"unavailable"}'
 ```
 
-Search again: results from the other suppliers are kept and a warning names `supplier-b`; the state is "partial", never shown as complete. Take all three suppliers down and the search fails with a clear error. Restore with `curl -s -X POST $M/control/reset`.
+Search again: results from the other suppliers are kept and a warning names `supplier-boots`; the state is "partial", never shown as complete. Take all three suppliers down and the search fails with a clear error. Restore with `curl -s -X POST $M/control/reset`.
 
 ## 5. Unknown booking outcome
 
 ```bash
-curl -s -X PUT $M/control/suppliers/supplier-a/latency -H "$J" -d '{"milliseconds":8000}'
+curl -s -X PUT $M/control/suppliers/supplier-alamo/latency -H "$J" -d '{"milliseconds":8000}'
 ```
 
-Book an offer of `supplier-a` and confirm. The provider answers after the backend gave up, so the item shows **Unknown outcome** (not failed, not confirmed). Remove the delay:
+Book an offer of `supplier-alamo` and confirm. The provider answers after the backend gave up, so the item shows **Unknown outcome** (not failed, not confirmed). Remove the delay:
 
 ```bash
-curl -s -X PUT $M/control/suppliers/supplier-a/latency -H "$J" -d '{"milliseconds":0}'
+curl -s -X PUT $M/control/suppliers/supplier-alamo/latency -H "$J" -d '{"milliseconds":0}'
 ```
 
 The `worker` asks the provider by booking reference and the status settles by itself to the real one, with no duplicate booking.

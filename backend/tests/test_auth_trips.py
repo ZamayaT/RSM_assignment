@@ -21,7 +21,7 @@ def test_users_list_is_public_and_seeded(client):
     response = client.get("/auth/users")
 
     assert response.status_code == 200
-    assert [u["username"] for u in response.json()] == ["alice", "bob", "carol"]
+    assert [u["username"] for u in response.json()] == ["alice", "bob", "carol", "daniela"]
 
 
 def test_login_returns_token_and_me_works(client):

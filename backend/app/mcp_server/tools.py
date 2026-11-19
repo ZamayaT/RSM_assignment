@@ -5,6 +5,7 @@ import no write code. Access is checked here, per call: a trip id alone grants n
 the same "not found" as for a trip that does not exist.
 """
 import uuid
+from decimal import Decimal
 from typing import Any
 
 from pydantic import ValidationError
@@ -16,6 +17,9 @@ from app.itinerary import itinerary_out, list_items
 from app.models import User
 from app.search import SearchIn, run_search
 from app.trips import _trip_out, can_read, get_trip_for_user, require
+
+# The model reads the whole result, so a search returns the best offers only (a long window can match dozens).
+MAX_OFFERS = 20
 
 
 class ToolFailure(Exception):
@@ -89,11 +93,29 @@ def search_options(
         problems = "; ".join(f"{'.'.join(str(p) for p in e['loc'])}: {e['msg']}" for e in exc.errors())
         raise ToolFailure(f"Invalid search arguments ({problems}).") from exc
     try:
-        return run_search(trip, body, request_id).model_dump(mode="json")
+        result = run_search(trip, body, request_id).model_dump(mode="json")
     except ApiError as exc:
         fields = (exc.details or {}).get("fields")
         detail = f" ({'; '.join(f'{k}: {v}' for k, v in fields.items())})" if fields else ""
         raise ToolFailure(f"{exc.message}{detail}") from exc
+    return limit_offers(result)
+
+
+def limit_offers(result: dict[str, Any]) -> dict[str, Any]:
+    """Keep the MAX_OFFERS best offers (available first, then cheapest) and say so when others were left out.
+
+    The state, warnings and `searchedAt` are untouched; the offers kept are exactly what the REST search returns.
+    """
+    offers = result["offers"]
+    result["offersTotal"] = len(offers)
+    if len(offers) > MAX_OFFERS:
+        best = sorted(offers, key=lambda o: (not o["available"], Decimal(o["price"]["amount"]), o["startsAt"]))
+        result["offers"] = best[:MAX_OFFERS]
+        result["note"] = (
+            f"Showing the {MAX_OFFERS} best of {len(offers)} offers (available first, then cheapest). "
+            "Narrow the dates, the supplier or the destination to see others."
+        )
+    return result
 
 
 # name -> (function, what the model is told). Every entry reads; nothing here changes data.
@@ -109,5 +131,6 @@ TOOL_DESCRIPTIONS = {
     "search_options": "Search the provider's current offers for transport, accommodation or activities at one of the "
     "trip's destinations. Returns the offers with price (total for the whole party), schedule, availability, quote "
     "validity and restrictions, plus the state: complete, partial (some supplier failed: see warnings) or empty. "
-    "Offers are estimates, not bookings.",
+    "At most 20 offers are returned (available first, then cheapest); offersTotal says how many matched and a note "
+    "appears when some were left out, so narrow the dates or supplier to see them. Offers are estimates, not bookings.",
 }

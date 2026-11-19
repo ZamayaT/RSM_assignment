@@ -68,7 +68,7 @@ def test_same_offer_twice_is_refused(client):
 def test_offer_for_a_destination_outside_the_trip_is_refused(client):
     headers, trip_id = make_trip(client)
 
-    response = add(client, headers, trip_id, "paris-accommodation-supplier-a-p2", 1)
+    response = add(client, headers, trip_id, "paris-accommodation-supplier-alamo-p2", 1)
 
     assert response.status_code == 400
     assert "offerId" in response.json()["details"]["fields"]

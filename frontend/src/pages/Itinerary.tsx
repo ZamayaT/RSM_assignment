@@ -4,7 +4,7 @@ import { Link as RouterLink, useParams } from "react-router-dom";
 import { api, ApiError, type BookingAttempt, type Itinerary as ItineraryData, type ItineraryItem, type Trip } from "../api";
 import BookDialog from "../BookDialog";
 import ConflictDialog, { type PendingChange } from "../ConflictDialog";
-import { LIVE_ITEM_STATUSES, STATUS_LABELS, restrictionsText, stamp } from "../format";
+import { LIVE_ITEM_STATUSES, STATUS_LABELS, restrictionsText, stamp, supplierName } from "../format";
 import { useTripWorkspace } from "../tripContext";
 
 interface Notice {
@@ -179,7 +179,7 @@ export default function Itinerary() {
                       : item.price
                         ? `≈ ${item.price.amount} ${item.price.currency}`
                         : "No price"}{" "}
-                    · {item.providerId}
+                    · {supplierName(item.providerId)}
                     {item.acceptedPrice ? "" : ` · quote valid until ${stamp(item.validUntil)}`}
                   </Typography>
                   {item.warnings.map((w, n) => (

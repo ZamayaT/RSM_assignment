@@ -18,7 +18,7 @@ logger = logging.getLogger("app.assistant")
 
 MAX_CALLS_PER_STEP = 5
 PREFETCH = ("get_trip", "get_budget")  # almost every answer needs them, so they are read before the first model call
-RESULT_EXCERPT_CHARS = 4000  # how much of a tool's result the page can show
+RESULT_EXCERPT_CHARS = 16000  # the page and the evaluation see what the model saw (the bridge limits a result to this many characters)
 
 
 @dataclass

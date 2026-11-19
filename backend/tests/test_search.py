@@ -52,7 +52,7 @@ def test_options_list_the_supported_values_and_need_login(client):
 
     assert options["categories"] == ["transport", "accommodation", "activity"]
     assert options["origins"] == ["London", "New York", "Madrid"]
-    assert options["suppliers"] == ["supplier-a", "supplier-b", "supplier-c"]
+    assert options["suppliers"] == ["supplier-alamo", "supplier-boots", "supplier-croc"]
 
 
 # --- results and states ---
@@ -101,9 +101,9 @@ def test_dates_and_travelers_default_from_the_trip(client):
 def test_supplier_filter_limits_the_results(client):
     headers, trip_id = make_trip(client)
 
-    body = search(client, headers, trip_id, category="accommodation", destination="Lisbon", providerId="supplier-c").json()
+    body = search(client, headers, trip_id, category="accommodation", destination="Lisbon", providerId="supplier-croc").json()
 
-    assert body["offers"] and {o["providerId"] for o in body["offers"]} == {"supplier-c"}
+    assert body["offers"] and {o["providerId"] for o in body["offers"]} == {"supplier-croc"}
 
 
 # --- validation ---
@@ -153,21 +153,21 @@ def test_unknown_supplier_is_reported_on_provider_id(client):
 
 def test_one_supplier_down_gives_partial_results_with_a_warning(client):
     headers, trip_id = make_trip(client)
-    fail_supplier("supplier-b")
+    fail_supplier("supplier-boots")
 
     body = search(client, headers, trip_id, category="accommodation", destination="Lisbon").json()
 
     assert body["state"] == "partial"
     assert body["offers"], "offers from the suppliers that answered are kept"
-    assert {o["providerId"] for o in body["offers"]} == {"supplier-a", "supplier-c"}
-    assert [w["providerId"] for w in body["warnings"]] == ["supplier-b"]
+    assert {o["providerId"] for o in body["offers"]} == {"supplier-alamo", "supplier-croc"}
+    assert [w["providerId"] for w in body["warnings"]] == ["supplier-boots"]
     assert body["warnings"][0]["code"] == "PROVIDER_UNAVAILABLE"
-    assert "supplier-b" in body["warnings"][0]["message"]
+    assert "supplier-boots" in body["warnings"][0]["message"]
 
 
 def test_all_suppliers_down_fails_with_503(client):
     headers, trip_id = make_trip(client)
-    for supplier in ("supplier-a", "supplier-b", "supplier-c"):
+    for supplier in ("supplier-alamo", "supplier-boots", "supplier-croc"):
         fail_supplier(supplier)
 
     response = search(client, headers, trip_id, category="accommodation", destination="Lisbon")
@@ -179,9 +179,9 @@ def test_all_suppliers_down_fails_with_503(client):
 
 def test_rate_limited_supplier_returns_429_with_retry_after(client):
     headers, trip_id = make_trip(client)
-    fail_supplier("supplier-a", "rate_limited", retryAfterSeconds=2)
+    fail_supplier("supplier-alamo", "rate_limited", retryAfterSeconds=2)
 
-    response = search(client, headers, trip_id, category="accommodation", destination="Lisbon", providerId="supplier-a")
+    response = search(client, headers, trip_id, category="accommodation", destination="Lisbon", providerId="supplier-alamo")
 
     assert response.status_code == 429
     assert response.json()["code"] == "RATE_LIMITED"

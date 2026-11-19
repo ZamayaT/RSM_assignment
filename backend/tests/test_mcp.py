@@ -3,12 +3,14 @@
 Uses the real provider mock over HTTP (reset around each test) and the test database.
 """
 import ast
+import json
 import re
 import uuid
 from pathlib import Path
 
 import pytest
 
+from app.mcp_server import tools
 from tests.conftest import login
 from tests.itinerary_helpers import add, control, make_trip, mock, offers, share  # noqa: F401 (mock is an autouse fixture)
 from tests.mcp_helpers import call_tool, list_tools, rpc
@@ -154,8 +156,33 @@ def test_search_options_equals_the_rest_search(client, shared):
     )
 
     assert ok
-    assert data["offers"] == rest["offers"] and data["offers"]
+    # Every offer the tool returns is an offer of the REST search, unchanged (the tool keeps the best ones only).
+    by_id = {o["id"]: o for o in rest["offers"]}
+    assert data["offers"] and all(by_id[o["id"]] == o for o in data["offers"])
+    assert data["offersTotal"] == len(rest["offers"])
     assert data["state"] == "complete" and data["warnings"] == [] and data["searchedAt"]
+
+
+def test_search_options_returns_the_best_offers_and_says_when_it_left_some_out(client, shared):
+    alice, trip_id = shared["alice"], shared["trip_id"]
+    rest = client.post(f"/trips/{trip_id}/search", json={"category": "activity", "destination": "Lisbon"}, headers=alice).json()
+    assert len(rest["offers"]) > tools.MAX_OFFERS  # the catalogue spans Nov 2026 to Jan 2027, so a year-long trip matches many
+
+    ok, data = call_tool(client, alice, "search_options", {"trip_id": trip_id, "category": "activity", "destination": "Lisbon"})
+
+    assert ok and len(data["offers"]) == tools.MAX_OFFERS
+    assert data["offersTotal"] == len(rest["offers"]) and str(tools.MAX_OFFERS) in data["note"]
+    prices = [float(o["price"]["amount"]) for o in data["offers"] if o["available"]]
+    assert prices == sorted(prices), "available offers come first, cheapest first"
+    cheapest = min(float(o["price"]["amount"]) for o in rest["offers"] if o["available"])
+    assert prices[0] == cheapest
+    assert len(json.dumps(data)) < 16000, "the whole result fits what the model is given"
+
+
+def test_a_search_with_few_offers_has_no_note(client, shared):
+    ok, data = call_tool(client, shared["alice"], "search_options", call_args("search_options", shared["trip_id"]) | {"supplier": "supplier-croc", "starts_on": "2026-11-20", "ends_on": "2026-11-27"})
+
+    assert ok and "note" not in data and data["offersTotal"] == len(data["offers"])
 
 
 def test_reading_changes_nothing(client, shared):
@@ -173,14 +200,14 @@ def test_reading_changes_nothing(client, shared):
 
 
 def test_search_options_shows_a_partial_result_with_its_warning(client, shared):
-    control("PUT", "/suppliers/supplier-a/failure", mode="unavailable")
+    control("PUT", "/suppliers/supplier-alamo/failure", mode="unavailable")
 
     ok, data = call_tool(client, shared["alice"], "search_options", call_args("search_options", shared["trip_id"]))
 
     assert ok
     assert data["state"] == "partial" and data["offers"]
-    assert any(w["providerId"] == "supplier-a" for w in data["warnings"])
-    assert "supplier-a" not in {o["providerId"] for o in data["offers"]}
+    assert any(w["providerId"] == "supplier-alamo" for w in data["warnings"])
+    assert "supplier-alamo" not in {o["providerId"] for o in data["offers"]}
 
 
 def test_search_options_shows_an_empty_result(client, shared):
@@ -208,7 +235,7 @@ def test_search_options_failures_are_tool_errors(client, shared):
 
 
 def test_all_suppliers_down_is_a_tool_error_not_a_success(client, shared):
-    for supplier in ("supplier-a", "supplier-b", "supplier-c"):
+    for supplier in ("supplier-alamo", "supplier-boots", "supplier-croc"):
         control("PUT", f"/suppliers/{supplier}/failure", mode="unavailable")
 
     ok, text = call_tool(client, shared["alice"], "search_options", call_args("search_options", shared["trip_id"]))

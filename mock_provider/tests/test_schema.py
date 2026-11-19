@@ -22,7 +22,7 @@ def _offer(conn, offer_id="o1"):
         text(
             f"INSERT INTO {SCHEMA}.offers (id, provider_id, category, title, description, destination, starts_at,"
             " ends_at, travelers, price_amount, currency, revision, available, valid_until)"
-            " VALUES (:id, 'supplier-a', 'activity', 't', 'd', 'Rome', :s, :e, 2, '10.00', 'USD', 'r1', true, :v)"
+            " VALUES (:id, 'supplier-alamo', 'activity', 't', 'd', 'Rome', :s, :e, 2, '10.00', 'USD', 'r1', true, :v)"
         ),
         {"id": offer_id, "s": now, "e": now + timedelta(hours=1), "v": now + timedelta(hours=1)},
     )
