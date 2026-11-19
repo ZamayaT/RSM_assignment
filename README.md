@@ -138,6 +138,37 @@ curl -s -X POST $M/control/reset
 
 To see an edit conflict, log in as `alice` in one browser window and as `carol` in a private window. As `alice`, create a trip and share it with `carol` as editor. Open the **Itinerary** tab of that trip in both windows, then change it in one window (for example, remove an item) and change it in the other without reloading. The second save is refused with a dialog that says someone else saved first, shows the latest itinerary next to your change, and lets you **Re-apply** it or **Discard** it. Nothing saved is overwritten. A trip edit and an itinerary change share one version, so they can conflict with each other too.
 
+### Documents
+
+Open the **Documents** tab (after Bookings) and click **Generate document** (organizers and editors; viewers can look at the history and download). The page answers at once with a *Waiting* row; the `worker` service builds the PDF in the background, and the row becomes *In progress* and then *Complete* by itself, also after a reload or for another participant. **Download** saves the PDF. It shows the itinerary, the costs (estimated, confirmed, total and remaining) and the booking statuses, headed by "Generated at <time> by <user> from trip version N".
+
+- **A snapshot**: the document holds the trip as it was when you clicked, so later edits, price changes or bookings never change it. Documents from an older trip version say "The trip has changed since this document". To see newer data, generate a new one.
+- **One at a time**: while a document is waiting or in progress, clicking again (or another editor clicking) shows the same document instead of starting a second one.
+- **Never shown as ready by mistake**: a document is *Complete* only after its file is stored. If the file is later deleted or altered, **Download** refuses it with an explanation (the file's checksum is verified), the document becomes *Failed*, and **Retry** builds it again from the same snapshot. A failed generation also has a **Retry** button.
+- **Interrupted work**: if the worker stops while building a document, it is picked up again after about 2 minutes (`DOCUMENT_STUCK_SECONDS`), and fails with an explanation after 3 attempts (`DOCUMENT_MAX_ATTEMPTS`). Both are in `.env.example`.
+- **Storage**: PDFs are kept in the `documents_data` Docker volume, shared by `backend` and `worker`. `docker compose down` keeps them; `docker compose down -v` deletes them together with the database.
+
+Limits: only PDF; every generated document is kept and there is no way to delete one (the volume grows); the PDF uses a built-in font, so characters outside Western European text (for example Japanese) appear as `?`.
+
+To try the difficult cases while the services are running (generate a document in the browser each time):
+
+```bash
+# a failed generation: send the worker to a folder it cannot create, generate (it shows Failed with a message), then undo it and click Retry
+echo "DOCUMENTS_DIR=/proc/documents" >> .env && docker compose up -d --no-deps worker
+sed -i '/^DOCUMENTS_DIR=/d' .env && docker compose up -d --no-deps worker
+
+# a stuck job: stop the worker, generate (it stays Waiting), pretend it died while working, then start it again (it recovers and completes)
+docker compose stop worker
+docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "UPDATE documents SET status='"'"'in_progress'"'"', attempts = 1, started_at = now() - interval '"'"'5 minutes'"'"' WHERE status = '"'"'waiting'"'"'"'
+docker compose start worker
+
+# a corrupted file: alter every stored PDF, then click Download (refused, the document becomes Failed), then Retry
+docker compose exec backend sh -c 'for f in /data/documents/*.pdf; do echo x >> "$f"; done'
+
+# a lost file: delete them instead (the history shows Failed after the next refresh)
+docker compose exec backend sh -c 'rm -f /data/documents/*.pdf'
+```
+
 The API endpoints are listed and can be tried at http://localhost:8000/docs.
 
 ## 7. Run the tests
@@ -149,7 +180,7 @@ docker compose exec backend pytest
 docker compose exec mock_provider pytest
 ```
 
-The itinerary and booking tests (outcomes, idempotency, recovery by the worker, permissions and concurrency) also call the real mock, so the `backend` and `mock_provider` services must be running; after a `docker compose down` they are not, so start them again first. The booking tests run the worker's steps directly, with the waiting intervals set to zero, so they do not depend on the `worker` service or on waiting. The search tests call the real provider mock over HTTP, so the `mock_provider` service must be running; they reset the mock before and after each test, which also clears any failures you set by hand. The backend tests create and use their own database (`<POSTGRES_DB>_test`, dropped and recreated on each run), so your trips and logins are never touched. All of them should pass; they cover login, validation, trips, visibility, versioning conflicts, concurrent saves and persistence across a restart.
+The itinerary and booking tests (outcomes, idempotency, recovery by the worker, permissions and concurrency) also call the real mock, so the `backend` and `mock_provider` services must be running; after a `docker compose down` they are not, so start them again first. The booking tests run the worker's steps directly, with the waiting intervals set to zero, so they do not depend on the `worker` service or on waiting. The document tests (generation, snapshots, recovery after a stuck worker, lost or altered files, permissions) run the worker steps directly and write to a temporary folder, so they need no waiting and do not touch your stored documents. The search tests call the real provider mock over HTTP, so the `mock_provider` service must be running; they reset the mock before and after each test, which also clears any failures you set by hand. The backend tests create and use their own database (`<POSTGRES_DB>_test`, dropped and recreated on each run), so your trips and logins are never touched. All of them should pass; they cover login, validation, trips, visibility, versioning conflicts, concurrent saves and persistence across a restart.
 
 The provider mock stores its data in its own PostgreSQL schema (`mock_provider`) and applies its migrations automatically when its container starts. Its fixtures, demo tokens, clock, `/control` endpoints and copy-paste failure scenarios are documented in [`mock_provider/README.md`](mock_provider/README.md). On startup it also loads its fixture offers (Lisbon, Paris, Rome) if there are none.
 
@@ -163,7 +194,7 @@ Stop the services (data is kept):
 docker compose down
 ```
 
-Stop and **delete all data** (the database volume) to start from scratch:
+Stop and **delete all data** (the database and the generated documents) to start from scratch:
 
 ```bash
 docker compose down -v

@@ -3,6 +3,7 @@ import { Link as RouterLink, Navigate, Outlet, Route, Routes, useLocation, useNa
 import { RequireUser, SessionProvider, useSession } from "./session";
 import Participants from "./pages/Participants";
 import Bookings from "./pages/Bookings";
+import Documents from "./pages/Documents";
 import BudgetView from "./pages/BudgetView";
 import Itinerary from "./pages/Itinerary";
 import Search from "./pages/Search";
@@ -82,6 +83,7 @@ export default function App() {
             <Route index element={<Navigate to="itinerary" replace />} />
             <Route path="itinerary" element={<Itinerary />} />
             <Route path="bookings" element={<Bookings />} />
+            <Route path="documents" element={<Documents />} />
             <Route path="budget" element={<BudgetView />} />
             <Route path="participants" element={<Participants />} />
             <Route path="search" element={<Search />} />
