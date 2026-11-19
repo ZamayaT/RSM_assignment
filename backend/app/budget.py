@@ -11,10 +11,10 @@ from typing import Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-from sqlalchemy import select
 
 from app.auth import CurrentUser
 from app.bookings import latest_attempts
+from app.itinerary import list_items
 from app.itinerary_rules import EXPIRED_QUOTE, ItemFacts, evaluate, TripFacts
 from app.models import BOOKING_CONFIRMED, ItineraryItem
 from app.trips import SessionDep, can_read, get_trip_for_user, require
@@ -86,14 +86,11 @@ class BudgetOut(BaseModel):
 def get_budget(trip_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> BudgetOut:
     trip, role = get_trip_for_user(session, trip_id, user)
     require(can_read(role))
-    items = list(
-        session.scalars(
-            select(ItineraryItem)
-            .where(ItineraryItem.trip_id == trip_id)
-            .order_by(ItineraryItem.position, ItineraryItem.added_at)
-        )
-    )
-    attempts = latest_attempts(session, trip_id)
+    return build_budget(trip, list_items(session, trip_id), latest_attempts(session, trip_id))
+
+
+def build_budget(trip, items: list[ItineraryItem], attempts: dict) -> BudgetOut:
+    """The budget as everyone sees it. `attempts` maps item id to its latest booking attempt."""
     facts = [
         ItemFacts(
             i.id, i.title, i.category, i.destination, i.starts_at, i.ends_at, i.price_amount, i.valid_until,

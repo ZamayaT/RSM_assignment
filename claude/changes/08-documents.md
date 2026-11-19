@@ -49,9 +49,9 @@ PDF with ReportLab (pure Python); PostgreSQL job table plus the existing worker 
 - [x] 1.2 Migration and model for `documents` (id, trip, requested-by user, status, trip version, snapshot JSON, snapshot time, relative file path, size, SHA-256, failure message, attempts, `started_at`, `finished_at`, timestamps); a unique index for one live (`waiting` or `in_progress`) document per trip.
 
 ### Snapshot and rendering
-- [ ] 2.1 Snapshot builder: one transaction with the trip row locked `FOR SHARE`, reusing the existing itinerary, budget and bookings read code; JSON-safe and immutable once stored.
-- [ ] 2.2 PDF renderer (a pure function from snapshot to bytes): header line with time, user and trip version, trip data, itinerary, costs with estimate or confirmed, booking statuses, footer; unsupported characters replaced.
-- [ ] 2.3 File storage helpers: write to a temporary path, flush, compute SHA-256 and size, atomic rename; verify (exists, size, checksum); remove stale temporary files.
+- [x] 2.1 Snapshot builder: one transaction with the trip row locked `FOR SHARE`, reusing the existing itinerary, budget and bookings read code; JSON-safe and immutable once stored.
+- [x] 2.2 PDF renderer (a pure function from snapshot to bytes): header line with time, user and trip version, trip data, itinerary, costs with estimate or confirmed, booking statuses, footer; unsupported characters replaced.
+- [x] 2.3 File storage helpers: write to a temporary path, flush, compute SHA-256 and size, atomic rename; verify (exists, size, checksum); remove stale temporary files.
 
 ### API
 - [ ] 3.1 `POST /trips/{id}/documents` (organizer, editor): snapshot, `waiting` row, `201`; an existing live document returns `200` with it. `GET /trips/{id}/documents` (history, newest first, with who, when, trip version, status, failure message, size) and `GET .../{docId}` (status), for every participant; the list marks complete documents whose file is missing as `failed`.
