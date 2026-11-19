@@ -1,6 +1,6 @@
 # Change 07 — Frontend redesign
 
-Status: In progress (implemented; manual browser pass 4.2 pending)
+Status: Complete
 
 ## Goal
 Apply the simple visual design in `RSM assignment simple design.pdf` to every view built so far, without losing any feature or behavior. One theme (Montserrat, a blue and orange palette) and three layouts: a full-screen **user selection**, a **My trips** card list, and a **trip workspace**. The workspace has a fixed general-info card on the left and a tabbed, scrollable section card on the right (Itinerary, Bookings, Budget, Participants and Search). Later views (Documents, Assistant) plug into the same layout as new tabs. This is frontend only: the backend, the API and all tests stay unchanged.
@@ -94,7 +94,7 @@ Everything below works today and must still work, for the same roles, after the 
 
 ### Documentation and checks
 - [x] 4.1 Update `PROJECT.md`: section 4 (layout: user selection, My trips, trip workspace with tabs; Trip overview becomes the left card), section 8.1/8.2 (theme decision: Montserrat, palette, MUI theme), section 10 (insert this change as 7, renumber Documents to 8, MCP and assistant to 9, Delivery to 10) and rename the planned change files accordingly. Update `README.md` only if setup changed.
-- [ ] 4.2 Manual pass in the browser with each role (organizer, editor, viewer, non-participant URL): go through the "Features to preserve" checklist item by item and every acceptance criterion of changes 2 to 6 in the new layout; report any item that could not be checked. Run `npm run build` (type check) and the backend test suite (`docker compose exec backend pytest`) to confirm nothing outside the frontend changed. Then `docker compose down`.
+- [x] 4.2 Manual pass in the browser with each role (organizer, editor, viewer, non-participant URL): go through the "Features to preserve" checklist item by item and every acceptance criterion of changes 2 to 6 in the new layout; report any item that could not be checked. Run `npm run build` (type check) and the backend test suite (`docker compose exec backend pytest`) to confirm nothing outside the frontend changed. Then `docker compose down`.
 
 ## Acceptance criteria
 - Every item in "Features to preserve" works for the same roles as before; nothing was removed except the "Allowed removals".
@@ -125,7 +125,7 @@ Everything below works today and must still work, for the same roles, after the 
   - Tab order: Itinerary, Budget, Bookings, Search, Participants.
   - The Participants tab fills the section card's width, and the workspace is split about 25% (info card, at least 300px) / 75% (section card).
   - The date inputs stay the browser's native ones (a custom date picker was tried and reverted, so no extra dependency), and the text keeps MUI's default size.
-- 4.2 status: `npm run build` passes and the backend suite passes (222 tests). The manual browser pass per role has not been done yet.
+- 4.2 status: `npm run build` passes and the backend suite passes (222 tests). The manual browser pass per role was done by the developer later.
 
 ## Technologies implemented
 - **`@fontsource/montserrat`** (npm): self-hosted Montserrat font (weights 400/600/700) imported in `main.tsx`, so the font works offline inside Docker.

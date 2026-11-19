@@ -2,7 +2,7 @@
 
 ## What was used
 
-- **Claude Code** (Anthropic's CLI and VS Code extension) wrote most of the code, tests and documents, working from change files agreed with the developer. Models: Claude models chosen by Claude Code; the session that built change 9 and this delivery ran on Claude Sonnet 5.5. (Earlier sessions may have used other Claude models; the repository does not record which.)
+- **Claude Code** (Anthropic's CLI and VS Code extension) wrote most of the code, tests and documents, working from change files agreed with the developer. Models: Claude Sonnet 5.5 and Claude Opus 5.5, both at medium effort.
 - **The assistant's own model** is not a development tool: a real model through an OpenAI-compatible API (OpenRouter free model by default), configured in `.env`.
 
 ## The harness (committed in `claude/`)
