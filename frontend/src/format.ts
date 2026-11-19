@@ -19,6 +19,9 @@ export const LIVE_ITEM_STATUSES = ["booking_pending", "unknown", "confirmed"];
 export const isLiveAttempt = (a: { status: string; unresolved: boolean }): boolean =>
   a.status === "initiated" || a.status === "pending" || (a.status === "unknown" && !a.unresolved);
 
+// A document that the worker has not finished yet (pages keep refreshing it).
+export const isLiveDocument = (d: { status: string }): boolean => d.status === "waiting" || d.status === "in_progress";
+
 // A random id for one booking decision. Falls back when crypto.randomUUID is unavailable (non-secure context).
 export function newIntentId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();

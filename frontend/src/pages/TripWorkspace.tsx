@@ -1,8 +1,8 @@
 import { Alert, Box, Button, CircularProgress, Paper, Tab, Tabs, Typography, useMediaQuery, type Theme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link as RouterLink, Outlet, useLocation, useParams } from "react-router-dom";
-import { api, ApiError, type Bookings, type Budget, type Itinerary, type Trip } from "../api";
-import { isLiveAttempt } from "../format";
+import { api, ApiError, type Bookings, type Budget, type Itinerary, type Trip, type TripDocument } from "../api";
+import { isLiveAttempt, isLiveDocument, stamp } from "../format";
 import RoleChip from "../RoleChip";
 import { TripWorkspaceContext } from "../tripContext";
 
@@ -10,11 +10,19 @@ const SECTIONS = [
   { path: "itinerary", label: "Itinerary" },
   { path: "budget", label: "Budget" },
   { path: "bookings", label: "Bookings" },
+  { path: "documents", label: "Documents" },
   { path: "search", label: "Search" },
   { path: "participants", label: "Participants" },
 ];
 
 const SUMMARY_POLL_MS = 5000;
+
+const DOCUMENT_STATUS_TEXT: Record<string, string> = {
+  waiting: "waiting",
+  in_progress: "in progress",
+  complete: "complete",
+  failed: "failed",
+};
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
@@ -38,6 +46,7 @@ export default function TripWorkspace() {
   const [budget, setBudget] = useState<Budget | null>(null);
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [bookings, setBookings] = useState<Bookings | null>(null);
+  const [documents, setDocuments] = useState<TripDocument[] | null>(null);
   const [saved, setSaved] = useState(false);
   const wide = useMediaQuery((t: Theme) => t.breakpoints.up("sm"));
 
@@ -51,6 +60,7 @@ export default function TripWorkspace() {
     api.budget(id).then(setBudget).catch(() => undefined);
     api.itinerary(id).then(setItinerary).catch(() => undefined);
     api.bookings(id).then(setBookings).catch(() => undefined);
+    api.documents(id).then(setDocuments).catch(() => undefined);
   }, [id]);
 
   useEffect(() => {
@@ -59,6 +69,7 @@ export default function TripWorkspace() {
     setBudget(null);
     setItinerary(null);
     setBookings(null);
+    setDocuments(null);
     refresh();
   }, [refresh]);
 
@@ -68,7 +79,7 @@ export default function TripWorkspace() {
   }, [location.state]);
 
   // Booking outcomes can change on their own (worker); keep the counters and totals current meanwhile.
-  const anyLive = bookings?.attempts.some(isLiveAttempt) ?? false;
+  const anyLive = (bookings?.attempts.some(isLiveAttempt) ?? false) || (documents?.some(isLiveDocument) ?? false);
   useEffect(() => {
     if (!anyLive) return;
     const timer = setInterval(refresh, SUMMARY_POLL_MS);
@@ -135,6 +146,17 @@ export default function TripWorkspace() {
             <Info
               label="Bookings"
               value={`${bookings.counts.confirmed} confirmed, ${bookings.counts.pending} pending, ${bookings.counts.unknown} unknown, ${bookings.counts.failed} failed`}
+            />
+          )}
+          {documents && (
+            <Info
+              label="Documents"
+              value={
+                documents.length === 0
+                  ? "None generated yet"
+                  : `Latest: ${DOCUMENT_STATUS_TEXT[documents[0].status]}
+Trip version ${documents[0].tripVersion}, ${stamp(documents[0].createdAt)}`
+              }
             />
           )}
           {trip.notes && <Info label="Notes" value={trip.notes} />}

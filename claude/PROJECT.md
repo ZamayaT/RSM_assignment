@@ -49,7 +49,7 @@ The assignment asks for the committed AI development setup (agent rules, prompts
 
 Described from the organizer's standpoint (organizers see everything). Differences for other roles are noted at the end.
 
-**Layout (change 7).** Every page after login has a header with the "Travel Planning Platform" title, a "My trips" link and the username. A trip opens a **trip workspace**: on the left, a fixed general-info card (the trip overview, 4.4, with "Edit Trip"); on the right, a pill tab bar (Itinerary, Budget, Bookings, Search, Participants) above a section card that scrolls by itself. Each tab has its own URL (`/trips/:id/<section>`). Views 4.5 to 4.9 are tabs; the later views (4.10 Documents, 4.11 Assistant) are added as new tabs. Visual style: Montserrat font, colors `#185075`, `#427ea6`, `#f57b31` and white (section 8.2).
+**Layout (change 7).** Every page after login has a header with the "Travel Planning Platform" title, a "My trips" link and the username. A trip opens a **trip workspace**: on the left, a fixed general-info card (the trip overview, 4.4, with "Edit Trip"); on the right, a pill tab bar (Itinerary, Budget, Bookings, Documents, Search, Participants) above a section card that scrolls by itself. Each tab has its own URL (`/trips/:id/<section>`). Views 4.5 to 4.9 are tabs; the later view (4.11 Assistant) is added as a new tab. Visual style: Montserrat font, colors `#185075`, `#427ea6`, `#f57b31` and white (section 8.2).
 
 **4.1 User selection (start page)**
 - List of seeded test users; clicking one logs in as that user (no password).
@@ -100,9 +100,9 @@ Described from the organizer's standpoint (organizers see everything). Differenc
 - Actions depending on status: "Check again" (unknown or long pending), "Retry" or "Choose another offer" (failed), explanation of next steps when some items succeeded and others failed.
 
 **4.10 Documents**
-- "Generate document" button.
-- History of all generated documents: who generated it, when, trip version, status (waiting, in progress, complete, failed).
-- Download for completed documents; "Retry" for failed ones. Status updates automatically while the page is open and is restored after reload.
+- "Generate document" button (organizer and editor; disabled while a document is waiting or in progress).
+- History of all generated documents: who generated it, when, trip version, status (waiting, in progress, complete, failed) with an explanation of each state, and a "The trip has changed since this document" note when the trip version is higher.
+- Download for completed documents (every participant), through an authenticated request that saves the file; "Retry" for failed ones (organizer and editor). Status updates automatically (polling every 3 s while a document is waiting or in progress) and is restored after reload.
 
 **4.11 Assistant**
 - Chat panel tied to the current trip.

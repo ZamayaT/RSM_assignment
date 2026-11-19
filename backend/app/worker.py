@@ -1,4 +1,4 @@
-"""Background worker: settles unknown booking outcomes and follows pending bookings.
+"""Background worker: settles unknown booking outcomes, follows pending bookings and builds trip documents.
 
 Run with `python -m app.worker`. Due attempts are claimed with FOR UPDATE SKIP LOCKED, so a restart or a
 second worker never processes the same attempt at the same time, and everything it does is safe to repeat
@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.booking_steps import check_attempt
 from app.config import get_settings
 from app.db import get_engine
+from app.document_steps import run_documents_once
 from app.models import BOOKING_INITIATED, BOOKING_PENDING, BOOKING_UNKNOWN, BookingAttempt
 
 logger = logging.getLogger("app.worker")
@@ -64,14 +65,18 @@ def main() -> None:
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    logger.info("booking worker started")
+    logger.info("worker started (bookings and documents)")
     while not stopping:
         try:
             run_once()
         except Exception:  # database not ready yet, provider trouble, ...: log and keep going
-            logger.exception("worker pass failed")
+            logger.exception("booking pass failed")
+        try:
+            run_documents_once()
+        except Exception:  # a failing document pass must not stop the bookings, and the other way round
+            logger.exception("document pass failed")
         time.sleep(get_settings().booking_worker_tick_seconds)
-    logger.info("booking worker stopped")
+    logger.info("worker stopped (bookings and documents)")
 
 
 if __name__ == "__main__":

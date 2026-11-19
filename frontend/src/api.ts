@@ -186,6 +186,23 @@ export interface LatestState {
   itinerary: Itinerary;
 }
 
+export type DocumentStatus = "waiting" | "in_progress" | "complete" | "failed";
+
+export interface TripDocument {
+  id: string;
+  tripId: string;
+  status: DocumentStatus;
+  tripVersion: number; // the trip version the document was generated from
+  requestedBy: { id: string; displayName: string } | null;
+  snapshotAt: string;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  sizeBytes: number | null;
+  failureMessage: string | null;
+  attempts: number;
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -254,7 +271,10 @@ async function request<T>(path: string, method = "GET", body?: unknown): Promise
 
   if (response.status === 204) return undefined as T;
   if (response.ok) return (await response.json()) as T;
+  throw await toApiError(response);
+}
 
+async function toApiError(response: Response): Promise<ApiError> {
   let data: {
     code?: string;
     message?: string;
@@ -268,7 +288,7 @@ async function request<T>(path: string, method = "GET", body?: unknown): Promise
   if (response.status === 401) unauthorizedHandler?.();
   const latest = data.details?.latest;
   const isState = latest !== undefined && "itinerary" in latest;
-  throw new ApiError(
+  return new ApiError(
     response.status,
     data.code ?? "ERROR",
     data.message ?? `Request failed (${response.status}).`,
@@ -277,6 +297,23 @@ async function request<T>(path: string, method = "GET", body?: unknown): Promise
     isState ? (latest as LatestState) : undefined,
     data.details as Record<string, unknown> | undefined,
   );
+}
+
+// The PDF is fetched with the bearer token (never in the URL) and handed back as a file to save.
+async function downloadFile(path: string): Promise<{ blob: Blob; filename: string }> {
+  const token = loadSession()?.token;
+  let response: Response;
+  try {
+    response = await fetch(`${BACKEND_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  } catch {
+    throw new ApiError(0, "NETWORK", "Cannot reach the server. Please try again.");
+  }
+  if (!response.ok) {
+    if (response.status === 401) unauthorizedHandler?.();
+    throw await toApiError(response);
+  }
+  const match = /filename="?([^";]+)"?/.exec(response.headers.get("Content-Disposition") ?? "");
+  return { blob: await response.blob(), filename: match?.[1] ?? "trip-document.pdf" };
 }
 
 export const api = {
@@ -305,6 +342,11 @@ export const api = {
   bookings: (tripId: string) => request<Bookings>(`/trips/${tripId}/bookings`),
   checkBooking: (tripId: string, attemptId: string) =>
     request<BookingAttempt>(`/trips/${tripId}/bookings/${attemptId}/check`, "POST"),
+  documents: (tripId: string) => request<TripDocument[]>(`/trips/${tripId}/documents`),
+  requestDocument: (tripId: string) => request<TripDocument>(`/trips/${tripId}/documents`, "POST"),
+  retryDocument: (tripId: string, documentId: string) =>
+    request<TripDocument>(`/trips/${tripId}/documents/${documentId}/retry`, "POST"),
+  downloadDocument: (tripId: string, documentId: string) => downloadFile(`/trips/${tripId}/documents/${documentId}/download`),
   budget: (tripId: string) => request<Budget>(`/trips/${tripId}/budget`),
   searchUsers: (query: string) => request<User[]>(`/users?query=${encodeURIComponent(query)}`),
   listParticipants: (tripId: string) => request<Participant[]>(`/trips/${tripId}/participants`),
