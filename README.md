@@ -2,7 +2,7 @@
 
 Group trip planning with provider search, simulated bookings, PDF trip documents, and a read-only AI assistant using MCP.
 
-> Status: under construction. This README only documents what is already implemented; setup steps are added as each development step is completed.
+> This README documents only what is implemented. Design and guarantees: [`docs/architecture.md`](docs/architecture.md). A guided demo: [`docs/demo.md`](docs/demo.md). How AI was used and checked: [`docs/ai-usage.md`](docs/ai-usage.md).
 
 Everything runs in **Docker**: Python, Node, PostgreSQL and all packages are installed inside containers. On your machine you only need Git and Docker Desktop.
 
@@ -275,9 +275,20 @@ docker compose down -v
   docker compose logs -f backend
   ```
 
+## Proposed deployment approach
+
+A proposal only; nothing here is deployed. The Compose file is for local use: it runs development servers (`npm run dev` for the frontend, `uvicorn` without workers for the backend) and publishes the database's data in a local volume.
+
+- **Hosting**: run the same images on one small container host (a VM with Docker Compose, or a managed container service). Serve the frontend as static files built with `npm run build` behind a reverse proxy with HTTPS, and route `/` to it and the API (including `/mcp`) to the backend. The `worker` runs as a second container of the backend image, one replica at least.
+- **Database**: a managed PostgreSQL with automated backups and point-in-time recovery instead of the local container; the backend applies its migrations on start. The generated PDFs live on a persistent volume or object storage that is also backed up (their checksums are kept in the database).
+- **Secrets and configuration**: all settings are environment variables (see `.env.example`); keep `POSTGRES_PASSWORD`, `PROVIDER_TOKEN` and `LLM_API_KEY` in the host's secret store, not in files, and set `FRONTEND_ORIGIN` and `VITE_BACKEND_URL` to the public URLs.
+- **What must change first**: the test-user login (no passwords) must be replaced by real authentication, and the provider mock by the real provider; the assistant's data is sent to the model provider, so choose one whose terms fit real data.
+- **Operation**: logs go to the container output with a request id per line (see Troubleshooting); `GET /health` can serve as the health check.
+
 ## Project documentation
 
 - `assignment/`: original assignment (PRD, candidate guide, provider contract `openAPI.json`).
+- `docs/`: architecture note, demo walkthrough, AI usage and verification note.
 - `claude/PROJECT.md`: project summary, requirements, decisions, architecture, build plan.
 - `claude/CLAUDE.md`: AI development rules (development harness).
 - `claude/changes/`: one file per development step with its tasks.
