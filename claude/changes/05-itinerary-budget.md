@@ -2,6 +2,8 @@
 
 Status: Complete
 
+> Note (change 07): the Itinerary and Budget views are now tabs of the trip workspace; the links and the budget summary of the trip overview live in its left info card and tab bar (see `07-frontend-redesign.md`). Behavior and permissions are unchanged.
+
 ## Goal
 Editors can add search results to a trip's itinerary, remove items and arrange their order; every participant sees the items with their schedule, cost, status and warnings, and a budget view that compares the estimated total with the trip budget. Concurrent edits never silently discard saved changes, and the person whose change was refused sees why and can re-apply or discard it. Covers FR-11 to FR-16, FR-18 to FR-20 and the "Itinerary", "Budget" and conflict dialog views, plus the "Add to itinerary" action of the Search view.
 
@@ -14,7 +16,7 @@ Editors can add search results to a trip's itinerary, remove items and arrange t
 - Refreshing a quote (`GET /offers/{id}` for an existing item), booking, booking statuses and "confirmed" prices (change 6). Until then every item is an estimate and the confirmed total is `0.00`.
 - Manual items not coming from a search, editing item fields, notes per item, drag and drop (reordering uses up/down buttons).
 - Travel time, opening hours and local-day logic (documented limit in `PROJECT.md` section 8.2).
-- Documents (change 7), assistant and MCP (change 8).
+- Documents (change 8), assistant and MCP (change 9).
 - Frontend automated tests (documented limit in `PROJECT.md` section 11); the frontend is checked manually.
 - The mock's `/control` endpoints are never used by the application; `assignment/` is read-only reference.
 

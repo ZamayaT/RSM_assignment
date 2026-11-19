@@ -23,6 +23,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - documents_data:/data/documents
     restart: unless-stopped
 
   worker:
@@ -35,6 +37,8 @@ services:
         condition: service_healthy
       backend:
         condition: service_started
+    volumes:
+      - documents_data:/data/documents
     restart: unless-stopped
 
   mock_provider:
@@ -59,3 +63,4 @@ services:
 
 volumes:
   postgres_data:
+  documents_data:

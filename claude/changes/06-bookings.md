@@ -2,6 +2,8 @@
 
 Status: Complete
 
+> Note (change 07): the Bookings view is now the "Bookings" tab of the trip workspace; the booking counters are in its left info card (see `07-frontend-redesign.md`). Behavior and permissions are unchanged.
+
 ## Goal
 An organizer or editor can book an itinerary item after seeing its current terms and explicitly confirming them. The booking never creates duplicates, even when the user retries or the response is lost; its outcome is always one of pending, confirmed, failed or unknown, and an unknown outcome is settled through the provider contract (never guessed). Confirmed bookings keep the accepted offer and price, feed the budget as confirmed costs, and stay visible with explained next steps when other items fail. Covers FR-21 to FR-29, FR-17 and the "Booking confirmation" and "Bookings" views, the item status labels and "refresh price" of the Itinerary view, and the first use of the background worker.
 
@@ -14,7 +16,7 @@ An organizer or editor can book an itinerary item after seeing its current terms
 - Payments, cancellation, refunds, callbacks (outside the provider contract).
 - A "book everything" button: each item is booked on its own; a mixed result is explained in the Bookings view.
 - Changing or rebooking a confirmed item, editing item fields, notes.
-- Documents (change 7; they will reuse the worker built here), assistant and MCP (change 8).
+- Documents (change 8; they will reuse the worker built here), assistant and MCP (change 9).
 - Frontend automated tests (documented limit in `PROJECT.md` section 11); the frontend is checked manually.
 - The mock's `/control` endpoints are never used by the application; only the tests use them. `assignment/` is read-only reference.
 

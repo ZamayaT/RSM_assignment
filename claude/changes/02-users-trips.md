@@ -2,6 +2,8 @@
 
 Status: Complete
 
+> Note (change 07): the views described here were restyled and reorganized afterwards. The separate trip overview is now the left info card of the trip workspace, and "Switch user" was replaced by clicking the header title (see `07-frontend-redesign.md`). The text below is the record of what this change built at the time.
+
 ## Goal
 Seeded test users who can "log in" by selecting a name, and trips that a logged-in user can create, list, view, and edit, with validation, versioning (optimistic locking), and persistence. First visible vertical slice: backend, its frontend views, and tests together.
 

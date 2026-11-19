@@ -49,16 +49,16 @@ The assignment asks for the committed AI development setup (agent rules, prompts
 
 Described from the organizer's standpoint (organizers see everything). Differences for other roles are noted at the end.
 
-**Layout (change 7).** Every page after login has a header with the "Travel Planning Platform" title, a "My trips" link and the username. A trip opens a **trip workspace**: on the left, a fixed general-info card (the trip overview, 4.4, with "Edit Trip"); on the right, a pill tab bar (Itinerary, Budget, Bookings, Search, Participants) above a section card that scrolls by itself. Each tab has its own URL (`/trips/:id/<section>`). Later views (Documents, Assistant) are added as new tabs. Visual style: Montserrat font, colors `#185075`, `#427ea6`, `#f57b31` and white (section 8.2).
+**Layout (change 7).** Every page after login has a header with the "Travel Planning Platform" title, a "My trips" link and the username. A trip opens a **trip workspace**: on the left, a fixed general-info card (the trip overview, 4.4, with "Edit Trip"); on the right, a pill tab bar (Itinerary, Budget, Bookings, Search, Participants) above a section card that scrolls by itself. Each tab has its own URL (`/trips/:id/<section>`). Views 4.5 to 4.9 are tabs; the later views (4.10 Documents, 4.11 Assistant) are added as new tabs. Visual style: Montserrat font, colors `#185075`, `#427ea6`, `#f57b31` and white (section 8.2).
 
 **4.1 User selection (start page)**
 - List of seeded test users; clicking one logs in as that user (no password).
-- The session token is kept in the browser; clicking the header title signs out and returns here.
+- The session token is kept in the browser. This page is the home page (`/`) and is always shown there; clicking the header title signs out and returns here.
 - Purpose: quickly demonstrate different roles and permission behavior.
 
-**4.2 My trips (home)**
+**4.2 My trips**
 - List of trips the user participates in, showing name, dates, destinations, and the user's role in each.
-- "Create trip" button.
+- "+ New Trip" button.
 
 **4.3 Create / edit trip**
 - Fields: name, one or more destinations (from the supported list), start and end dates, number of travelers, budget (USD), optional preferences/notes for the assistant.
@@ -68,7 +68,7 @@ Described from the organizer's standpoint (organizers see everything). Differenc
 **4.4 Trip overview** (the left card of the trip workspace)
 - Summary: dates, destinations, travelers, budget versus current total, remaining budget.
 - Counters and alerts: itinerary warnings (conflicts, expired prices, missing information), bookings by status, latest document status.
-- Navigation to the other trip views.
+- "Edit Trip" button (organizer and editor). Navigation to the other trip views is the tab bar next to this card.
 
 **4.5 Participants**
 - Current participants with their role.
@@ -355,7 +355,7 @@ The PRD requires all 12 stories; there is no smaller official MVP. Each step is 
 |---|---|---|---|
 | 0 | Project skeleton | Repo layout, Docker Compose, PostgreSQL, FastAPI health endpoint, config and `.env.example`, pytest setup | React + Vite + MUI shell with navigation |
 | 1 | Provider mock | All contract endpoints, fixtures, persistence, clock, failure switches, contract tests | None (inspected via FastAPI's built-in `/docs` page) |
-| 2 | Users and trips | Seeded users, login, trips CRUD, validation, versioning, persistence | User selection, My trips, Create/edit trip, Trip overview (basic) |
+| 2 | Users and trips | Seeded users, login, trips CRUD, validation, versioning, persistence | User selection, My trips, Create/edit trip, Trip overview (basic; the left card of the workspace since change 7) |
 | 3 | Sharing and permissions | Participants, roles, permission enforcement and tests | Participants |
 | 4 | Search | Provider client, search endpoint, partial/empty/failed handling | Search |
 | 5 | Itinerary and budget | Items, ordering, warnings, budget calculations, conflict handling | Itinerary, Budget, conflict dialog |

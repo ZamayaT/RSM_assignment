@@ -2,6 +2,8 @@
 
 Status: Complete
 
+> Note (change 07): the Search view is now the "Search" tab of the trip workspace, replacing the link on the trip overview (see `07-frontend-redesign.md`). Behavior and permissions are unchanged.
+
 ## Goal
 A participant of a trip can search transport, accommodation, and activities through the provider mock (over HTTP only) and compare the results. The search clearly shows whether it was complete, partial (with a warning per failed supplier, keeping the successful results), empty, or failed, and never presents offers as booked or guaranteed. Covers FR-08 to FR-10 and the "Search" view.
 
@@ -13,7 +15,7 @@ A participant of a trip can search transport, accommodation, and activities thro
 ## Out of scope
 - "Add to itinerary" and everything that stores an offer (change 5); this step stores nothing about searches or offers.
 - Refreshing a quote (`GET /offers/{id}`), bookings, idempotency, reconciliation (change 6).
-- Caching, pagination, server-side sorting or filtering of results; the assistant and MCP (change 8).
+- Caching, pagination, server-side sorting or filtering of results; the assistant and MCP (change 9).
 - Frontend automated tests (documented limit in `PROJECT.md` section 11); the frontend is checked manually.
 - The mock's `/control` endpoints are never used by the application; only the tests use them, to create failures.
 - `assignment/` is read-only reference; the backend never reads it at runtime.

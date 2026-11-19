@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     booking_slow_after_seconds: int = 1800  # a pending booking older than this is "taking longer than expected"
     booking_worker_tick_seconds: float = 2  # how often the worker looks for due attempts
 
+    # Documents (PDF trip summaries built by the worker).
+    documents_dir: str = "/data/documents"  # shared volume mounted in `backend` and `worker`
+    document_stuck_seconds: int = 120  # an `in_progress` document older than this goes back to `waiting`
+    document_max_attempts: int = 3  # after this many attempts an interrupted document is marked `failed`
+
     @property
     def database_url(self) -> URL:
         # URL.create escapes special characters in credentials.

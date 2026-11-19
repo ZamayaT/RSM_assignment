@@ -2,6 +2,8 @@
 
 Status: Complete
 
+> Note (change 07): the Participants view is now the "Participants" tab of the trip workspace, replacing the link on the trip overview (see `07-frontend-redesign.md`). Behavior and permissions are unchanged.
+
 ## Goal
 An organizer can add other users to a trip as editor or viewer, change their role, and remove them. The role of each participant is enforced by the backend on every trip request, and the Participants view shows it in the browser. Covers FR-04 to FR-07 for the endpoints that exist so far (trips); later changes reuse the same permission helpers.
 
