@@ -14,6 +14,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
 import { api, ApiError, type AssistantToolCall, type ChatMessage } from "../api";
+import { SHOW_ASSISTANT_TOOLS } from "../config";
 
 const MAX_SENT = 20; // the backend accepts at most this many messages per question
 
@@ -151,8 +152,8 @@ export default function Assistant() {
             {t.incomplete && (
               <Alert severity="warning" sx={{ mt: 1 }}>The assistant ran out of steps before it could answer. Try a narrower question.</Alert>
             )}
-            {t.toolCalls && t.toolCalls.length > 0 && <ToolsUsed calls={t.toolCalls} />}
-            {t.role === "assistant" && t.toolCalls && t.toolCalls.every((c) => !c.name.startsWith("search")) && (
+            {SHOW_ASSISTANT_TOOLS && t.toolCalls && t.toolCalls.length > 0 && <ToolsUsed calls={t.toolCalls} />}
+            {SHOW_ASSISTANT_TOOLS && t.role === "assistant" && t.toolCalls && t.toolCalls.every((c) => !c.name.startsWith("search")) && (
               <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
                 No search was made for this answer.
               </Typography>

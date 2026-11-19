@@ -1,6 +1,6 @@
 # Change 09 — Read-only MCP layer and assistant
 
-Status: In progress (tasks 1 to 4 done; evaluations, tests and docs pending)
+Status: Done (all tasks complete)
 
 ## Goal
 A participant (organizer, editor or viewer) opens an **Assistant** tab in a trip, asks for travel recommendations in plain language, and gets an answer grounded in real data: the assistant (a real LLM) discovers and calls **read-only MCP tools** that read the trip, the itinerary, the budget, the bookings and search the provider's options, always as the logged-in user. It shows which tools it used and what they returned or how they failed, says when nothing suitable exists, and never changes the itinerary or requests a booking (no such tool exists). Search and assistant behavior have **reproducible evaluations**, with the deterministic checks kept apart from the ones that need a model. Covers FR-36 to FR-42, US-11, US-12, FR-07 for assistant tools, the "Assistant" view (`PROJECT.md` 4.11) and resolves the open question about the LLM provider (section 13).
@@ -65,16 +65,16 @@ Official Python `mcp` SDK, HTTP transport, mounted inside the backend (one place
 - [x] 4.2 "Tools used" under each answer: tool name, arguments, ok or failed, a short summary or the error, so a recommendation can be checked; partial and empty searches shown as such.
 
 ### Evaluations
-- [ ] 5.1 Search evaluation: cases, expectations and runner (`python -m evals.search`), deterministic, against the real mock, with pass/fail output.
-- [ ] 5.2 Assistant evaluation: scenarios, rule-based checks (tools called, read-only, grounding, failure and empty-result honesty, no booking claims), runner with pass rate and JSON report (`python -m evals.assistant`).
+- [x] 5.1 Search evaluation: cases, expectations and runner (`python -m evals.search`), deterministic, against the real mock, with pass/fail output.
+- [x] 5.2 Assistant evaluation: scenarios, rule-based checks (tools called, read-only, grounding, failure and empty-result honesty, no booking claims), runner with pass rate and JSON report (`python -m evals.assistant`).
 
 ### Tests and documentation
-- [ ] 6.1 MCP tests: the tool list is exactly the read-only set and has no modifying name; `401` without or with a wrong token; every participant (including a viewer) can read; a non-participant and a token of another user get a "not found" tool error on every tool; a trip id alone grants nothing; tool results equal the REST responses; `search_options` shows `partial` and `empty`; `mcp` and `assistant` import no write module.
-- [ ] 6.2 Assistant tests with a scripted LLM (testing our loop, labeled as such): tools are executed and fed back, the step limit stops a loop, a tool failure is shown as failed and reaches the model, a call to a trip other than the conversation's is rejected, unknown or malformed tool calls do not crash, each model error maps to its status and code, and the endpoint's `401`, `404` and `503 ASSISTANT_NOT_CONFIGURED`; a viewer can ask; the assistant changes nothing in the database.
-- [ ] 6.3 Update `README.md` (get a free OpenRouter key, `.env` variables, the probe, using the assistant, inspecting `/mcp` with copy-paste commands, running both evaluations and what they cost, the data-sent-to-the-provider note, the limits) and `PROJECT.md` (resolve section 13 and the LLM row of 8.1, 4.11 wording, FR coverage, section 11 testing wording); only what is implemented.
+- [x] 6.1 MCP tests: the tool list is exactly the read-only set and has no modifying name; `401` without or with a wrong token; every participant (including a viewer) can read; a non-participant and a token of another user get a "not found" tool error on every tool; a trip id alone grants nothing; tool results equal the REST responses; `search_options` shows `partial` and `empty`; `mcp` and `assistant` import no write module.
+- [x] 6.2 Assistant tests with a scripted LLM (testing our loop, labeled as such): tools are executed and fed back, the step limit stops a loop, a tool failure is shown as failed and reaches the model, a call to a trip other than the conversation's is rejected, unknown or malformed tool calls do not crash, each model error maps to its status and code, and the endpoint's `401`, `404` and `503 ASSISTANT_NOT_CONFIGURED`; a viewer can ask; the assistant changes nothing in the database.
+- [x] 6.3 Update `README.md` (get a free OpenRouter key, `.env` variables, the probe, using the assistant, inspecting `/mcp` with copy-paste commands, running both evaluations and what they cost, the data-sent-to-the-provider note, the limits) and `PROJECT.md` (resolve section 13 and the LLM row of 8.1, 4.11 wording, FR coverage, section 11 testing wording); only what is implemented.
 
 ## Acceptance criteria
-- In the browser, a participant of a trip opens **Assistant**, asks for the cheapest accommodation within the remaining budget, and gets an answer that cites real offers from the Search results, relates them to the trip's dates and budget and their restrictions, and lists the tools it used with their arguments and results.
+- In the browser, a participant of a trip opens **Assistant**, asks for the cheapest accommodation within the remaining budget, and gets an answer that cites real offers from the Search results, relates them to the trip's dates and budget and their restrictions, and (with the default `VITE_SHOW_ASSISTANT_TOOLS=true`) lists the tools it used with their arguments and results; setting it to `false` hides that list, and the answer itself still states any failure or empty result.
 - Asking it to book something or change the itinerary is refused with an explanation of what the user can do, and nothing in the trip changes; the tool list contains no modifying tool.
 - With a supplier down the answer says so (partial results are not presented as complete); with no matching offer it says nothing suitable was found instead of inventing one.
 - A viewer can use the assistant; a non-participant gets `404` on the endpoint and a "not found" error from every tool; `/mcp` without a token is `401`; asking about another trip through the model's tool arguments is rejected.

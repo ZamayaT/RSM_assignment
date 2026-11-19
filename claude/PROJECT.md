@@ -49,7 +49,7 @@ The assignment asks for the committed AI development setup (agent rules, prompts
 
 Described from the organizer's standpoint (organizers see everything). Differences for other roles are noted at the end.
 
-**Layout (change 7).** Every page after login has a header with the "Travel Planning Platform" title, a "My trips" link and the username. A trip opens a **trip workspace**: on the left, a fixed general-info card (the trip overview, 4.4, with "Edit Trip"); on the right, a pill tab bar (Itinerary, Budget, Bookings, Documents, Search, Participants) above a section card that scrolls by itself. Each tab has its own URL (`/trips/:id/<section>`). Views 4.5 to 4.9 are tabs; the later view (4.11 Assistant) is added as a new tab. Visual style: Montserrat font, colors `#185075`, `#427ea6`, `#f57b31` and white (section 8.2).
+**Layout (change 7).** Every page after login has a header with the "Travel Planning Platform" title, a "My trips" link and the username. A trip opens a **trip workspace**: on the left, a fixed general-info card (the trip overview, 4.4, with "Edit Trip"); on the right, a pill tab bar (Itinerary, Budget, Bookings, Documents, Search, Participants) above a section card that scrolls by itself. Each tab has its own URL (`/trips/:id/<section>`). Views 4.5 to 4.9 are tabs; the last tab is 4.11 Assistant (Itinerary, Budget, Bookings, Documents, Search, Participants, Assistant). Visual style: Montserrat font, colors `#185075`, `#427ea6`, `#f57b31` and white (section 8.2).
 
 **4.1 User selection (start page)**
 - List of seeded test users; clicking one logs in as that user (no password).
@@ -105,9 +105,10 @@ Described from the organizer's standpoint (organizers see everything). Differenc
 - Download for completed documents (every participant), through an authenticated request that saves the file; "Retry" for failed ones (organizer and editor). Status updates automatically (polling every 3 s while a document is waiting or in progress) and is restored after reload.
 
 **4.11 Assistant**
-- Chat panel tied to the current trip.
-- Shows which tools were used and their results or failures, so recommendations can be checked.
+- Last tab of the trip (`/trips/:id/assistant`): a chat panel tied to the current trip, open to every participant (viewers too). The messages live in the open tab and are cleared on reload (nothing is saved).
+- Under each answer, "Tools used" (shown by default; an optional frontend setting, `VITE_SHOW_ASSISTANT_TOOLS=false`, hides it; this list is our own addition, the PRD only requires that tool failures are made clear): tool name, arguments, ok or failed, and a short summary or the error; partial and empty searches are shown as such, so recommendations can be checked.
 - Permanent notice that the assistant is read-only: it recommends, the user performs changes.
+- Clear messages when the assistant is not configured, the provider limit is reached, a call times out, or another error happens.
 
 **Other roles**
 - **Editor**: same as organizer except the Participants view is read-only.
@@ -167,6 +168,8 @@ IDs `FR-xx` map to PRD user stories (`US-xx`).
 - **FR-35 (US-10)** Mismatches between stored files and their references are detected or recovered; no document is falsely reported as ready.
 
 ### Assistant and MCP
+Implemented in change 9 (FR-07 for assistant tools, FR-36 to FR-42): MCP tools `get_trip`, `get_itinerary`, `get_budget`, `get_bookings`, `search_options` at `/mcp`; each call authenticates the bearer token and checks trip membership; the assistant endpoint is `POST /trips/{id}/assistant/messages`. Tests: `tests/test_mcp.py` and `tests/test_assistant.py`; evaluations: `evals.search` and `evals.assistant`.
+
 - **FR-36 (US-11)** The assistant inspects the authorized trip and searches options through read-only MCP tools.
 - **FR-37 (US-11)** Recommendations are grounded in retrieved data, explain their relation to dates, budget, preferences, and restrictions, flag gaps or conflicts, and state when nothing suitable exists.
 - **FR-38 (US-11)** Tool failures and insufficient information are surfaced, not presented as success.
@@ -235,7 +238,7 @@ Rules that drive the design:
 | Document storage | Local disk volume + metadata and checksum in PostgreSQL; ReportLab | Confirmed (recommended) |
 | Packaging | Docker Compose | Confirmed (recommended) |
 | Concurrency | Optimistic locking with a trip version number | Confirmed (recommended) |
-| LLM provider | To be decided (section 13) | Pending |
+| LLM provider | A real model through an OpenAI-compatible API, configured only by `LLM_BASE_URL`, `LLM_API_KEY` and `LLM_MODEL`; documented default: an OpenRouter free model (section 13) | Confirmed (developer, change 9) |
 | Build plan | Section 10 | Confirmed (developer) |
 
 ### 8.2 Details
@@ -375,11 +378,11 @@ Not everything will be covered. Priorities, targeting the guarantees reviewers c
 4. **Concurrency**: two saves based on the same version; the second receives 409 and nothing is lost.
 5. **Document jobs**: status transitions, recovery of a stuck job, checksum mismatch detection.
 6. **Search**: one supplier down produces `partial=true` with warnings.
-7. **Assistant**: deterministic tests with a scripted LLM (only read-only tools, permissions enforced).
+7. **Assistant**: deterministic tests of the MCP layer (tool list, authentication, permissions, parity with REST) and of our conversation loop and endpoint with a scripted LLM (step limit, failures, one-trip restriction, error codes, nothing written). The scripted model tests our code only; they are not evidence of recommendation quality, which is measured by the model-dependent evaluation.
 
 Skipped or minimal (documented as limits): frontend tests, browser end-to-end tests, load tests, broad edge-case coverage.
 
-Tools: `pytest` with `httpx`, PostgreSQL test database through Compose; `ruff` for the Python services and `tsc` (type check) for the frontend, each a single documented command. Model-dependent evaluations are a separate optional command requiring an API key or local model, with setup and cost documented; the default test run never needs a model.
+Tools: `pytest` with `httpx`, PostgreSQL test database through Compose; `ruff` for the Python services and `tsc` (type check) for the frontend, each a single documented command. Evaluations are two commands, `python -m evals.search` (deterministic, no model) and `python -m evals.assistant` (model-dependent, needs the key; a failure is reported, not hidden), with setup and cost in the README; the default test run never needs a model.
 
 ## 12. Constraints, scope, and deliverables
 
@@ -406,4 +409,4 @@ Tools: `pytest` with `httpx`, PostgreSQL test database through Compose; `ruff` f
 
 ## 13. Open questions
 
-- **LLM provider (Pending).** The assignment supplies no API key. Until decided, everything is built as if a real model were used: an `LLMClient` interface configured by environment variables (`.env.example`), with MCP tools and the assistant loop fully working. Options: (1) scripted LLM for tests and demo, (2) free-tier hosted model or local model via Ollama, (3) reviewer supplies their own key. Possibly a question for the assignment authors. To be decided at change 9.
+- **LLM provider (Resolved, change 9).** The assignment supplies no API key, the developer has no paid key and the company said to use any available provider and not to simulate answers. The assistant therefore uses a real model through an OpenAI-compatible API (`LLMClient` interface, configured only by `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`), with an OpenRouter free model as the documented default; Groq, a local Ollama model or a paid provider work with the same variables. Limits: free models have daily and per-minute limits and are inconsistent, and the tool results are sent to the provider (test data only). Default tests use a scripted client for our own code only.
