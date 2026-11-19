@@ -80,7 +80,11 @@ def map_provider_error(exc: provider.ProviderError, request_id: str, action: str
 def search_trip(trip_id: uuid.UUID, body: SearchIn, user: CurrentUser, session: SessionDep, request: Request) -> SearchOut:
     """Search offers for a trip. Changes nothing; any participant (viewers too) may search."""
     trip, _role = get_trip_for_user(session, trip_id, user)
+    return run_search(trip, body, getattr(request.state, "request_id", "-"))
 
+
+def run_search(trip, body: SearchIn, request_id: str) -> SearchOut:
+    """The read-only search shared by the REST endpoint and the MCP tool: validate against the trip, ask the provider."""
     starts_on = body.startsOn or trip.start_date
     ends_on = body.endsOn or trip.end_date
     travelers = body.travelers or trip.travelers
@@ -106,7 +110,6 @@ def search_trip(trip_id: uuid.UUID, body: SearchIn, user: CurrentUser, session: 
         travelers=travelers,
         providerId=body.providerId,
     )
-    request_id = getattr(request.state, "request_id", "-")
     try:
         result = provider.search_offers(params)
     except provider.ProviderError as exc:

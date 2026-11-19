@@ -207,6 +207,30 @@ export interface TripDocument {
   attempts: number;
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+// One tool the assistant used for an answer (read-only tools over MCP).
+export interface AssistantToolCall {
+  name: string;
+  arguments: Record<string, unknown>;
+  ok: boolean;
+  summary: string;
+  error: string | null;
+  result: string | null; // the tool's result as the model saw it (shortened)
+  durationMs: number;
+  prefetched: boolean; // read automatically before the model was asked
+}
+
+export interface AssistantReply {
+  reply: string;
+  toolCalls: AssistantToolCall[];
+  steps: number;
+  incomplete: boolean; // the step limit stopped the assistant before it could answer
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -351,6 +375,8 @@ export const api = {
   retryDocument: (tripId: string, documentId: string) =>
     request<TripDocument>(`/trips/${tripId}/documents/${documentId}/retry`, "POST"),
   downloadDocument: (tripId: string, documentId: string) => downloadFile(`/trips/${tripId}/documents/${documentId}/download`),
+  askAssistant: (tripId: string, messages: ChatMessage[]) =>
+    request<AssistantReply>(`/trips/${tripId}/assistant/messages`, "POST", { messages }),
   budget: (tripId: string) => request<Budget>(`/trips/${tripId}/budget`),
   searchUsers: (query: string) => request<User[]>(`/users?query=${encodeURIComponent(query)}`),
   listParticipants: (tripId: string) => request<Participant[]>(`/trips/${tripId}/participants`),

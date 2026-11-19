@@ -13,6 +13,7 @@ const SECTIONS = [
   { path: "documents", label: "Documents" },
   { path: "search", label: "Search" },
   { path: "participants", label: "Participants" },
+  { path: "assistant", label: "Assistant" },
 ];
 
 const SUMMARY_POLL_MS = 5000;

@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
 
@@ -36,6 +37,15 @@ class Settings(BaseSettings):
     booking_poll_slow_seconds: int = 60  # ... and then this often
     booking_slow_after_seconds: int = 1800  # a pending booking older than this is "taking longer than expected"
     booking_worker_tick_seconds: float = 2  # how often the worker looks for due attempts
+
+    # Assistant: a real model behind an OpenAI-compatible chat API (OpenRouter, Groq, Ollama, ...).
+    # Empty key or model means "not configured": the assistant explains what to set instead of failing.
+    llm_base_url: str = "https://openrouter.ai/api/v1"
+    llm_api_key: SecretStr = SecretStr("")  # a secret: never logged or printed
+    llm_model: str = ""
+    llm_timeout_seconds: float = 60  # per model call
+    assistant_max_steps: int = 6  # model calls per question (tool rounds included)
+    mcp_url: str = "http://localhost:8000/mcp"  # the assistant reaches the MCP tools over HTTP, in the same container
 
     # Documents (PDF trip summaries built by the worker).
     documents_dir: str = "/data/documents"  # shared volume mounted in `backend` and `worker`

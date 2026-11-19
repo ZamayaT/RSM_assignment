@@ -2,6 +2,7 @@ import { AppBar, Box, Button, ButtonBase, SvgIcon, Toolbar, Tooltip, Typography 
 import { Link as RouterLink, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { RequireUser, SessionProvider, useSession } from "./session";
 import Participants from "./pages/Participants";
+import Assistant from "./pages/Assistant";
 import Bookings from "./pages/Bookings";
 import Documents from "./pages/Documents";
 import BudgetView from "./pages/BudgetView";
@@ -87,6 +88,7 @@ export default function App() {
             <Route path="budget" element={<BudgetView />} />
             <Route path="participants" element={<Participants />} />
             <Route path="search" element={<Search />} />
+            <Route path="assistant" element={<Assistant />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

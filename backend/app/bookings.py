@@ -219,6 +219,11 @@ class BookingsOut(BaseModel):
 def list_bookings(trip_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> BookingsOut:
     _, role = get_trip_for_user(session, trip_id, user)
     require(can_read(role))
+    return build_bookings(session, trip_id)
+
+
+def build_bookings(session, trip_id: uuid.UUID) -> BookingsOut:
+    """Every attempt of the trip (newest first) and the counters of the latest attempt per item."""
     titles = _titles(session, trip_id)
     attempts = list(
         session.scalars(
