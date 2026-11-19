@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from app import bookings as bookings_module
 from app import provider_client as provider
 from app.db import get_engine
-from app.models import BookingAttempt
 from app.worker import process_next_due, run_once
 from tests.booking_helpers import (  # noqa: F401
     MOCK,

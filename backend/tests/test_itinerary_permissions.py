@@ -1,6 +1,6 @@
 """Who may read and change an itinerary."""
-from tests.itinerary_helpers import add, itinerary, make_trip, mock, offers, share  # noqa: F401
 from tests.conftest import login
+from tests.itinerary_helpers import add, itinerary, make_trip, mock, offers, share  # noqa: F401
 
 UNKNOWN_ITEM = "00000000-0000-4000-8000-000000000000"
 

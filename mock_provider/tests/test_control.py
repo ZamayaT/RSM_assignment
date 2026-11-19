@@ -237,3 +237,13 @@ def test_reset_returns_the_clock_to_real_time_before_loading_fixtures():
     client.post("/control/reset")  # also returns the clock to its configured value
     with Session(get_engine()) as session:
         assert session.scalar(select(func.min(Offer.starts_at))) > datetime.now(timezone.utc)
+
+
+def test_restrictions_change_creates_a_new_revision_and_is_returned(make_offer):
+    offer_id = make_offer(restrictions=["Minimum age 18"])
+    changed = client.post(f"/control/offers/{offer_id}", json={"restrictions": ["Photo ID required at check-in"]})
+    assert changed.status_code == 200
+    body = client.get(f"/v1/offers/{offer_id}", headers=AUTH).json()
+    assert body["restrictions"] == ["Photo ID required at check-in"] and body["revision"] == "r2"
+    same = client.post(f"/control/offers/{offer_id}", json={"restrictions": ["Photo ID required at check-in"]})
+    assert same.json()["revision"] == "r2"  # nothing changed: no new revision

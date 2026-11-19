@@ -124,13 +124,14 @@ def render_pdf(snapshot: dict, document_id: str) -> bytes:
                     _money(price["amount"], price["currency"]) if price else "-",
                     ITEM_STATUS.get(i["status"], i["status"]),
                     "; ".join(w["message"] for w in i["warnings"]) or "-",
+                    "; ".join(i.get("restrictions", [])) or "None stated",
                 ]
             )
         story.append(
             table(
-                ["#", "Title", "Category", "Destination", "Schedule (UTC)", "Cost", "Status", "Warnings"],
+                ["#", "Title", "Category", "Destination", "Schedule (UTC)", "Cost", "Status", "Warnings", "Restrictions"],
                 rows,
-                [8, 52, 24, 28, 40, 24, 30, 51],
+                [7, 44, 22, 24, 36, 22, 26, 42, 44],
             )
         )
     else:

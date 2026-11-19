@@ -1,0 +1,14 @@
+# Quality check: `docker compose exec <service> ruff check .`
+line-length = 120
+target-version = "py312"
+
+[lint]
+# ruff's default rules (pycodestyle errors, pyflakes) plus import sorting.
+select = ["E4", "E7", "E9", "F", "I"]
+
+[lint.isort]
+known-first-party = ["app", "tests"]
+
+[lint.per-file-ignores]
+# Test fixtures are imported from helper modules and then used as test arguments, which ruff reads as a redefinition.
+"tests/*" = ["F811"]

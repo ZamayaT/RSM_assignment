@@ -1,5 +1,5 @@
 """Search and get-offer behavior against the seeded fixtures (run inside the container)."""
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -275,3 +275,31 @@ def test_get_offer_of_failing_supplier_follows_the_failure_mode():
     failures.set_failure("supplier-b", "rate_limited", retry_after=3)
     response = client.get(f"/v1/offers/{stored.id}", headers=AUTH)
     assert response.status_code == 429 and response.headers["Retry-After"] == "3"
+
+
+# ---- restrictions (the contract's optional Offer.restrictions) --------------------------------------
+
+def test_every_offer_carries_restrictions_as_a_list_and_some_state_none():
+    from app.fixtures import RESTRICTIONS
+
+    body = _search().json()
+    assert body["offers"] and all(isinstance(o["restrictions"], list) for o in body["offers"])
+    assert any(o["restrictions"] for o in body["offers"])
+    assert all(any(not options for options in RESTRICTIONS[category]) for category in RESTRICTIONS)  # each category has an offer with none
+
+
+def test_get_offer_returns_its_restrictions_and_an_offer_without_them_has_an_empty_list(make_offer):
+    with_restrictions = make_offer(restrictions=["Minimum age 18"])
+    without = make_offer(restrictions=[])
+    assert client.get(f"/v1/offers/{with_restrictions}", headers=AUTH).json()["restrictions"] == ["Minimum age 18"]
+    assert client.get(f"/v1/offers/{without}", headers=AUTH).json()["restrictions"] == []
+
+
+def test_restrictions_follow_the_catalogue_rule_and_survive_a_control_change(make_offer):
+    from app.fixtures import restrictions_for
+
+    stored = _any_offer(available=True)
+    assert list(stored.restrictions) == restrictions_for(stored.id, stored.category)
+    offer_id = make_offer(restrictions=["Photo ID required at check-in"])
+    client.post(f"/control/offers/{offer_id}", json={"price": "120.50"})
+    assert client.get(f"/v1/offers/{offer_id}", headers=AUTH).json()["restrictions"] == ["Photo ID required at check-in"]

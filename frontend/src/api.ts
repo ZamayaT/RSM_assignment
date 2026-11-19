@@ -69,6 +69,7 @@ export interface Offer {
   revision: string;
   available: boolean;
   validUntil: string;
+  restrictions: string[]; // as the supplier states them; empty when none
 }
 
 export interface SearchResult {
@@ -102,6 +103,7 @@ export interface ItineraryItem {
   revision: string;
   available: boolean;
   validUntil: string | null;
+  restrictions: string[]; // as the provider stated them when the offer was added or last refreshed
   status: ItemStatus;
   warnings: ItineraryWarning[];
   addedAt: string;
@@ -151,7 +153,9 @@ export interface Quote {
   itemId: string;
   saved: QuoteTerms;
   current: QuoteTerms;
-  changes: ("price" | "revision" | "availability" | "expired")[];
+  changes: ("price" | "revision" | "availability" | "expired" | "restrictions")[];
+  savedRestrictions: string[];
+  restrictions: string[]; // the provider's current restrictions
   description: string; // the provider's current description, including its conditions
   bookable: boolean;
   reason: string | null;

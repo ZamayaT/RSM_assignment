@@ -114,6 +114,7 @@ class ItineraryItem(Base):
     revision: Mapped[str] = mapped_column(String(64))
     available: Mapped[bool] = mapped_column(Boolean)
     valid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    restrictions: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default="{}")
     added_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

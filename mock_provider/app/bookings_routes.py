@@ -6,8 +6,8 @@ from app.auth import get_caller
 from app.bookings import create_booking, resolve_if_due, to_booking_schema
 from app.clock import get_clock
 from app.db import get_session
-from app.failures import apply_latency
 from app.errors import ApiError
+from app.failures import apply_latency
 from app.models import Booking, Offer
 from app.schemas import BookingOut, CreateBookingRequest
 

@@ -145,17 +145,18 @@ class OfferChange(BaseModel):
 
     price: str | None = Field(default=None, pattern=AMOUNT, description='New total price, e.g. "199.90".')
     available: bool | None = None
+    restrictions: list[str] | None = Field(default=None, description="Replace the offer's restrictions.")
 
     @model_validator(mode="after")
     def _something(self):
-        if self.price is None and self.available is None:
-            raise ValueError("send price and/or available")
+        if self.price is None and self.available is None and self.restrictions is None:
+            raise ValueError("send price, available and/or restrictions")
         return self
 
 
 @router.post("/offers/{offerId}", response_model=OfferOut, response_model_exclude_none=True)
 def change_offer(offerId: str, body: OfferChange, session: Session = Depends(get_session)) -> OfferOut:
-    """Change an offer's price and/or availability. A real change creates a new revision."""
+    """Change an offer's price, availability and/or restrictions. A real change creates a new revision."""
     offer = session.get(Offer, offerId, with_for_update=True)
     if offer is None:
         raise ApiError(404, "NOT_FOUND", "No visible record exists for the supplied identifier.")
@@ -164,6 +165,8 @@ def change_offer(offerId: str, body: OfferChange, session: Session = Depends(get
         offer.price_amount, changed = Decimal(body.price), True
     if body.available is not None and body.available != offer.available:
         offer.available, changed = body.available, True
+    if body.restrictions is not None and body.restrictions != list(offer.restrictions or []):
+        offer.restrictions, changed = list(body.restrictions), True
     if changed:
         offer.revision = next_revision(offer.revision)
         offer.updated_at = get_clock().now()

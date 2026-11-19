@@ -12,6 +12,10 @@ export const STATUS_LABELS: Record<string, { label: string; color: "default" | "
   unknown: { label: "Unknown outcome", color: "warning" },
 };
 
+// Restrictions as the provider states them; an empty list is shown as such, never as "no restrictions apply".
+export const restrictionsText = (restrictions: string[]): string =>
+  restrictions.length === 0 ? "None stated by the provider" : restrictions.join("; ");
+
 // An item with one of these statuses has a booking that blocks removing or re-pricing it.
 export const LIVE_ITEM_STATUSES = ["booking_pending", "unknown", "confirmed"];
 

@@ -8,6 +8,7 @@ from app import auth, bookings, budget, destinations, documents, itinerary, part
 from app.config import get_settings
 from app.db import check_database
 from app.errors import install_error_handling
+from app.logging_setup import setup_logging
 from app.seed import run_seed
 
 
@@ -16,6 +17,8 @@ async def lifespan(_: FastAPI):
     run_seed()
     yield
 
+
+setup_logging()
 
 app = FastAPI(title="Travel Planning Platform API", lifespan=lifespan)
 

@@ -26,7 +26,7 @@ import {
   type SearchResult,
   type Trip,
 } from "../api";
-import ConflictDialog, { type PendingChange } from "../ConflictDialog";import { stamp } from "../format";
+import ConflictDialog, { type PendingChange } from "../ConflictDialog";import { restrictionsText, stamp } from "../format";
 import { useTripWorkspace } from "../tripContext";
 
 type SortKey = "price" | "start" | "supplier";
@@ -253,7 +253,8 @@ export default function Search() {
                       <TableRow key={o.id} sx={o.available ? undefined : { opacity: 0.6 }}>
                         <TableCell>
                           <Typography variant="body2">{o.title}</Typography>
-                          <Typography variant="caption" color="text.secondary">{o.description}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>{o.description}</Typography>
+                          <Typography variant="caption" sx={{ display: "block" }}>Restrictions: {restrictionsText(o.restrictions)}</Typography>
                         </TableCell>
                         <TableCell>{o.providerId}</TableCell>
                         <TableCell>{stamp(o.startsAt)} → {stamp(o.endsAt)}</TableCell>

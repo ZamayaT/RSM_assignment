@@ -240,3 +240,12 @@ def test_concurrent_requests_with_different_keys_and_one_reference_create_one_bo
     assert sorted(r.status_code for r in responses) == [201] + [409] * 5
     assert {r.json()["code"] for r in responses if r.status_code == 409} == {"REFERENCE_CONFLICT"}
     assert _count(offer_id) == 1
+
+
+def test_booking_snapshot_keeps_the_restrictions_the_offer_had_when_accepted(make_offer):
+    offer_id = make_offer(restrictions=["Non-refundable simulated booking"])
+    booking = _post(_body(offer_id, "ref-restrictions")).json()
+    _update_offer(offer_id, restrictions=[])  # later changes never alter the accepted snapshot
+    assert booking["offer"]["restrictions"] == ["Non-refundable simulated booking"]
+    reread = client.get(f"/v1/bookings/{booking['id']}", headers=AUTH).json()
+    assert reread["offer"]["restrictions"] == ["Non-refundable simulated booking"]

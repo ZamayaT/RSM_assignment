@@ -1,6 +1,6 @@
 # Change 08 — Documents
 
-Status: In progress (implemented; manual browser pass of the Documents tab pending)
+Status: Complete
 
 ## Goal
 An organizer or editor can generate a downloadable PDF summary of the trip (itinerary, costs and booking statuses) without blocking the application. The document is prepared in the background by the worker, its status (waiting, in progress, complete, failed) is always visible and is restored after a reload, and every participant can download completed documents. A document states which trip information and point in time it represents, and later edits never change it. Interrupted work, repeated requests, a lost file or a corrupted file never leave a document falsely reported as ready, and a failed generation can be retried. Covers FR-30 to FR-35, US-09, US-10 and the "Documents" view (`PROJECT.md` 4.10), and it is the second use of the background worker.

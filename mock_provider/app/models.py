@@ -14,7 +14,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -48,6 +48,7 @@ class Offer(Base):
     revision: Mapped[str] = mapped_column(String(64))
     available: Mapped[bool] = mapped_column(Boolean, default=True)
     valid_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    restrictions: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list, server_default="{}")
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

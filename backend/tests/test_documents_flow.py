@@ -4,8 +4,8 @@ from concurrent.futures import ThreadPoolExecutor
 from app import document_steps
 from tests.document_helpers import (  # noqa: F401
     complete_document,
-    document_count,
     docs_dir,
+    document_count,
     documents,
     download,
     fresh_item,

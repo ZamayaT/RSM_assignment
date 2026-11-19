@@ -3,8 +3,8 @@ import uuid
 
 from tests.document_helpers import (  # noqa: F401
     complete_document,
-    document_count,
     docs_dir,
+    document_count,
     documents,
     download,
     get_document,

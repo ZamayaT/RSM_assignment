@@ -96,6 +96,14 @@ To build an itinerary, click **Add to itinerary** on a search result (organizers
 - **Warnings** (simplified rules): two items conflict when their time ranges overlap, comparing UTC instants (an end equal to the next start is fine). A stay may overlap activities and transport, but two overlapping stays conflict. Also flagged: missing schedule or price, an expired quote, an item outside the trip dates, and a destination that is not on the trip. Travel time and opening hours are not checked. "Expired" uses the backend's clock, so it can differ from the provider mock's clock if you shifted that.
 - **Budget rounding**: an item's cost is the offer's total price for the party (not multiplied by travelers). Totals are exact sums to the cent; any result with more decimals would be rounded half-up to the cent. Items without a price are left out. Every cost is an estimate until the item is booked; a confirmed booking counts as a confirmed cost at the price the provider accepted.
 
+### Restrictions
+
+Each offer lists the **restrictions** its supplier states (for example "Non-refundable simulated booking" or "Minimum age 18"); "None stated by the provider" means the supplier sent none. The itinerary keeps the restrictions saved with each item (**Refresh price** updates them), the booking dialog shows the current ones and highlights a change next to the saved ones, and documents include them. To see a change in the dialog, replace an item's restrictions in the mock and open **Book** on it (replace `OFFER_ID`):
+
+```bash
+curl -s -X POST http://localhost:4010/control/offers/OFFER_ID -H "Content-Type: application/json" -d '{"restrictions":["Minimum age 21"]}'
+```
+
 ### Bookings
 
 To book an item, open the **Itinerary** tab and click **Book** (organizers and editors; viewers can only look). A dialog shows the provider's current terms (price, availability, quote revision and validity) next to the estimate saved in the itinerary, and highlights what changed. Nothing is booked until you click **Confirm booking**, and it books exactly the terms shown. A sold-out or expired offer cannot be confirmed; use **Refresh price** on the item to replace its saved estimate with the current terms.
@@ -186,6 +194,16 @@ The provider mock stores its data in its own PostgreSQL schema (`mock_provider`)
 
 The mock's clock follows real time by default. To freeze it or shift it, uncomment `MOCK_CLOCK_FROZEN_AT` (for example `2030-01-15T09:00:00Z`) or `MOCK_CLOCK_OFFSET_SECONDS` in `.env`, then run `docker compose up -d mock_provider`. Fixture dates are generated relative to the clock when they are first loaded.
 
+### Quality checks
+
+```bash
+docker compose exec backend ruff check .
+docker compose exec mock_provider ruff check .
+docker compose exec frontend npm run typecheck
+```
+
+The first two lint the Python code (ruff: the default rules plus import order, configured in each service's `ruff.toml`); the third type-checks the frontend. All three should report no problems.
+
 ## 8. Stop and reset
 
 Stop the services (data is kept):
@@ -204,6 +222,12 @@ docker compose down -v
 
 - **Port already in use**: change the port variables (`FRONTEND_PORT`, `BACKEND_PORT`, `MOCK_PROVIDER_PORT`) in `.env`. If you change `FRONTEND_PORT`, also update `FRONTEND_ORIGIN`; if you change `BACKEND_PORT`, also update `VITE_BACKEND_URL`. Then run `docker compose up --build` again.
 - **Docker commands fail**: make sure Docker Desktop is running.
+- **Trace a failed operation**: errors shown in the browser include a request id (`req-...`). Every backend log line carries the id of the request it belongs to, so one search finds the access line (method, path, status, duration, user), the call to the provider with its own request id and status, and the traceback of an unexpected error (which is answered with `500 INTERNAL_ERROR` and the same id). Replace the id below with yours; the level is `LOG_LEVEL` in `.env` (default `INFO`):
+
+  ```bash
+  docker compose logs backend | grep req-0123456789abcdef
+  ```
+
 - **See the logs of one service**:
 
   ```bash

@@ -84,7 +84,7 @@ Described from the organizer's standpoint (organizers see everything). Differenc
 
 **4.7 Itinerary**
 - Items in chronological order (manual reordering allowed), each with schedule, destination, cost, and a status label: estimate, expired quote, booking pending, confirmed, failed, unknown.
-- Warnings per item: schedule conflict, missing information, expired quote, outside trip dates.
+- Warnings per item: schedule conflict, missing information, expired quote, outside trip dates. Each item also shows the restrictions the provider stated when it was added or last refreshed.
 - Actions: remove, reorder, refresh price, book.
 - Save feedback: "Saved" or an error. If another participant saved first, a **conflict dialog** explains it, shows the latest saved state next to the user's change, and lets the user re-apply or discard.
 - A short explanation of the simplified scheduling rules is visible.
@@ -362,6 +362,7 @@ The PRD requires all 12 stories; there is no smaller official MVP. Each step is 
 | 6 | Bookings | Quote refresh, booking attempts, idempotency, reconciliation in worker | Booking confirmation, Bookings |
 | 7 | Frontend redesign | None | Theme, user selection, My trips, trip workspace (info card + tabs) for all existing views |
 | 8 | Documents | Job table, worker, PDF, storage, checksum, history | Documents (workspace tab) |
+| 8.5 | Hardening | Logging with request ids and a standard 500, offer restrictions end to end (mock, search, quote, itinerary, documents), ruff | Restrictions in Search, booking dialog and Itinerary |
 | 9 | MCP and assistant | MCP tools, `LLMClient`, assistant loop, evaluations | Assistant (workspace tab) |
 | 10 | Delivery | README, architecture note, demo walkthrough, AI usage note | Final consistency pass |
 
@@ -378,7 +379,7 @@ Not everything will be covered. Priorities, targeting the guarantees reviewers c
 
 Skipped or minimal (documented as limits): frontend tests, browser end-to-end tests, load tests, broad edge-case coverage.
 
-Tools: `pytest` with `httpx`, PostgreSQL test database through Compose. Model-dependent evaluations are a separate optional command requiring an API key or local model, with setup and cost documented; the default test run never needs a model.
+Tools: `pytest` with `httpx`, PostgreSQL test database through Compose; `ruff` for the Python services and `tsc` (type check) for the frontend, each a single documented command. Model-dependent evaluations are a separate optional command requiring an API key or local model, with setup and cost documented; the default test run never needs a model.
 
 ## 12. Constraints, scope, and deliverables
 

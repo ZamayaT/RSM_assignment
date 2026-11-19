@@ -3,6 +3,7 @@
 Everything is deterministic and relative to the clock, so a given clock instant always yields the same
 catalogue. Offer dates are destination-local calendar days counted from the clock's "today".
 """
+import zlib
 from datetime import datetime, time, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from math import ceil
@@ -62,6 +63,35 @@ VALIDITY_CYCLE = (timedelta(minutes=30), timedelta(hours=6), timedelta(days=1), 
 UNAVAILABLE_EVERY = 11  # every Nth offer is sold out
 
 
+# Simulated restrictions per category. The choice for an offer is a stable function of its id, so the same
+# catalogue always carries the same restrictions; some offers state none (an empty list).
+RESTRICTIONS = {
+    "transport": [
+        ["Non-refundable simulated booking"],
+        ["Carry-on bag only", "Non-refundable simulated booking"],
+        [],
+        ["Photo ID required at check-in"],
+    ],
+    "accommodation": [
+        ["Non-refundable simulated booking", "Photo ID required at check-in"],
+        ["Minimum age 18 to check in"],
+        [],
+        ["Non-refundable simulated booking"],
+    ],
+    "activity": [
+        ["Non-refundable simulated booking"],
+        ["Minimum age 18"],
+        [],
+        ["Weather permitting; the simulated booking is not refunded"],
+    ],
+}
+
+
+def restrictions_for(offer_id: str, category: str) -> list[str]:
+    options = RESTRICTIONS[category]
+    return list(options[zlib.crc32(offer_id.encode()) % len(options)])
+
+
 def _money(value: Decimal) -> Decimal:
     return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
@@ -93,6 +123,7 @@ def build_offers(now: datetime) -> list[dict]:
                 "revision": "r1",
                 "available": (index + 1) % UNAVAILABLE_EVERY != 0,
                 "valid_until": now + VALIDITY_CYCLE[index % len(VALIDITY_CYCLE)],
+                "restrictions": restrictions_for(offer_id, category),
                 "updated_at": now,
             }
         )

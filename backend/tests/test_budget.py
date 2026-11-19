@@ -130,7 +130,7 @@ def test_budget_totals_and_lines(client):
     assert body["estimatedTotal"] == "115.25" and body["confirmedTotal"] == "0.00"
     assert body["combinedTotal"] == "115.25" and body["budget"] == "100.00"
     assert body["remaining"] == "-15.25" and body["overBudget"] is True
-    assert [(l["amount"], l["kind"], l["expired"]) for l in body["lines"]] == [
+    assert [(line["amount"], line["kind"], line["expired"]) for line in body["lines"]] == [
         ("60.00", "estimate", False),
         ("55.25", "estimate", True),
     ]

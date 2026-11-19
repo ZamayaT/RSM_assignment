@@ -1,7 +1,7 @@
 import secrets
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -35,6 +35,7 @@ def _user_out(user: User) -> UserOut:
 
 
 def get_current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
     session: Annotated[Session, Depends(get_session)],
 ) -> User:
@@ -44,6 +45,7 @@ def get_current_user(
             select(User).join(AuthToken, AuthToken.user_id == User.id).where(AuthToken.token == credentials.credentials)
         )
         if user is not None:
+            request.state.user_id = str(user.id)  # read by the access log line
             return user
     raise ApiError(401, "UNAUTHORIZED", "Missing or invalid authentication token.")
 

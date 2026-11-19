@@ -16,6 +16,7 @@ from app.booking_steps import check_attempt
 from app.config import get_settings
 from app.db import get_engine
 from app.document_steps import run_documents_once
+from app.logging_setup import setup_logging
 from app.models import BOOKING_INITIATED, BOOKING_PENDING, BOOKING_UNKNOWN, BookingAttempt
 
 logger = logging.getLogger("app.worker")
@@ -56,7 +57,7 @@ def run_once(now: datetime | None = None) -> int:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    setup_logging()
     stopping = False
 
     def stop(*_):

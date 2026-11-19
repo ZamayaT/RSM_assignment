@@ -1,4 +1,6 @@
 """Itinerary add / remove / reorder against the real provider mock."""
+import httpx
+
 from tests.itinerary_helpers import (  # noqa: F401  (mock is an autouse fixture)
     MOCK,
     add,
@@ -9,8 +11,6 @@ from tests.itinerary_helpers import (  # noqa: F401  (mock is an autouse fixture
     offer_ids,
     offers,
 )
-
-import httpx
 
 
 def test_add_stores_a_snapshot_of_the_provider_offer(client):

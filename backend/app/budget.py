@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from app.auth import CurrentUser
 from app.bookings import latest_attempts
 from app.itinerary import list_items
-from app.itinerary_rules import EXPIRED_QUOTE, ItemFacts, evaluate, TripFacts
+from app.itinerary_rules import EXPIRED_QUOTE, ItemFacts, TripFacts, evaluate
 from app.models import BOOKING_CONFIRMED, ItineraryItem
 from app.trips import SessionDep, can_read, get_trip_for_user, require
 
@@ -55,8 +55,8 @@ class BudgetTotals:
 
 
 def compute_totals(lines: list[BudgetLine], budget: Decimal) -> BudgetTotals:
-    estimated = money(sum((l.amount for l in lines if l.kind == ESTIMATE and l.amount is not None), Decimal("0")))
-    confirmed = money(sum((l.amount for l in lines if l.kind == CONFIRMED and l.amount is not None), Decimal("0")))
+    estimated = money(sum((line.amount for line in lines if line.kind == ESTIMATE and line.amount is not None), Decimal("0")))
+    confirmed = money(sum((line.amount for line in lines if line.kind == CONFIRMED and line.amount is not None), Decimal("0")))
     combined = money(estimated + confirmed)
     return BudgetTotals(estimated, confirmed, combined, money(budget), money(budget - combined))
 
@@ -113,15 +113,15 @@ def build_budget(trip, items: list[ItineraryItem], attempts: dict) -> BudgetOut:
     return BudgetOut(
         lines=[
             BudgetLineOut(
-                itemId=l.item_id,
-                title=l.title,
-                category=l.category,
-                amount=None if l.amount is None else f"{money(l.amount):.2f}",
-                kind=l.kind,
-                expired=l.expired,
-                status=l.status,
+                itemId=line.item_id,
+                title=line.title,
+                category=line.category,
+                amount=None if line.amount is None else f"{money(line.amount):.2f}",
+                kind=line.kind,
+                expired=line.expired,
+                status=line.status,
             )
-            for l in lines
+            for line in lines
         ],
         estimatedTotal=f"{totals.estimated:.2f}",
         confirmedTotal=f"{totals.confirmed:.2f}",

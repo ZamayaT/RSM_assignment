@@ -27,6 +27,7 @@ class OfferOut(BaseModel):
     revision: str
     available: bool
     validUntil: datetime
+    restrictions: list[str] = Field(default_factory=list)  # always a list; empty when the supplier states none
 
 
 class SupplierWarning(BaseModel):

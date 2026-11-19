@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # Browser origin allowed to call the API (CORS).
     frontend_origin: str = "http://localhost:5173"
 
+    # Log level of the backend and the worker (DEBUG, INFO, WARNING, ERROR).
+    log_level: str = "INFO"
+
     # Provider (mock) reached over HTTP.
     provider_base_url: str = "http://mock_provider:4010/v1"
     provider_token: str = "travel-demo-token"

@@ -1,10 +1,19 @@
 """One JSON error shape for every error: {code, message, requestId, details}."""
+import logging
+import time
 import uuid
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from app.logging_setup import request_id_var
+
+logger = logging.getLogger("app.request")
+
+# Not written to the access log (probes would drown the useful lines).
+QUIET_PATHS = ("/health", "/health/ready")
 
 _CODES = {
     400: "VALIDATION_ERROR",
@@ -55,8 +64,30 @@ def install_error_handling(app: FastAPI) -> None:
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):
         request.state.request_id = f"req-{uuid.uuid4().hex}"
-        response = await call_next(request)
+        request_id_var.set(request.state.request_id)
+        started = time.monotonic()
+        try:
+            response = await call_next(request)
+        except Exception:
+            # Unexpected error: the traceback goes to the log with the request id; the browser gets the standard
+            # body and the same id, never internal details.
+            logger.exception("unhandled error during %s %s", request.method, request.url.path)
+            response = error_response(
+                request,
+                500,
+                "INTERNAL_ERROR",
+                "Something went wrong on our side. Please try again; if it keeps happening, report the request id.",
+            )
         response.headers["X-Request-Id"] = request.state.request_id
+        if request.url.path not in QUIET_PATHS:
+            logger.info(
+                "%s %s -> %s in %d ms user=%s",
+                request.method,
+                request.url.path,
+                response.status_code,
+                (time.monotonic() - started) * 1000,
+                getattr(request.state, "user_id", "-"),
+            )
         return response
 
     @app.exception_handler(ApiError)

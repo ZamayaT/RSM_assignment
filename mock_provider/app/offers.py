@@ -78,4 +78,5 @@ def to_schema(offer: Offer) -> OfferOut:
         revision=offer.revision,
         available=offer.available,
         validUntil=offer.valid_until,
+        restrictions=list(offer.restrictions or []),
     )

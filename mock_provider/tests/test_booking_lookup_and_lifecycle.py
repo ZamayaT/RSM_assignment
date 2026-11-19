@@ -8,12 +8,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
+from test_bookings import _body, _post
 
 from app import failures, outcomes
 from app.clock import get_clock
 from app.db import get_engine
 from app.main import app
-from test_bookings import _body, _post
 
 client = TestClient(app)
 

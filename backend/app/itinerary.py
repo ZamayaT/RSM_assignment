@@ -46,6 +46,7 @@ class ItemOut(BaseModel):
     revision: str
     available: bool
     validUntil: datetime | None
+    restrictions: list[str]  # as the provider stated them when the offer was added or last refreshed
     status: str
     warnings: list[WarningOut]
     addedAt: datetime
@@ -103,6 +104,7 @@ def itinerary_out(trip, items: list[ItineraryItem], attempts: dict) -> Itinerary
                 revision=i.revision,
                 available=i.available,
                 validUntil=i.valid_until,
+                restrictions=list(i.restrictions or []),
                 status=evaluations[i.id].status,
                 warnings=[WarningOut(code=w.code, message=w.message) for w in evaluations[i.id].warnings],
                 addedAt=i.added_at,
@@ -253,6 +255,7 @@ def add_item(trip_id: uuid.UUID, body: AddIn, user: CurrentUser, session: Sessio
         revision=offer.revision,
         available=offer.available,
         valid_until=offer.validUntil,
+        restrictions=list(offer.restrictions),
         added_by=user.id,
     )
     # Chronological place: before the first item that starts later (items without a start keep their place).
@@ -322,7 +325,9 @@ class QuoteOut(BaseModel):
     itemId: str
     saved: Terms
     current: Terms
-    changes: list[Literal["price", "revision", "availability", "expired"]]
+    changes: list[Literal["price", "revision", "availability", "expired", "restrictions"]]
+    savedRestrictions: list[str]
+    restrictions: list[str]  # the provider's current restrictions
     description: str  # the provider's current description; the mock states its conditions there
     bookable: bool
     reason: str | None
@@ -372,6 +377,8 @@ def get_quote(trip_id: uuid.UUID, item_id: uuid.UUID, user: CurrentUser, session
         changes.append("availability")
     if current.expired:
         changes.append("expired")
+    if list(item.restrictions or []) != list(offer.restrictions):
+        changes.append("restrictions")
     reason = None
     if not current.available:
         reason = "This offer is no longer available."
@@ -382,6 +389,8 @@ def get_quote(trip_id: uuid.UUID, item_id: uuid.UUID, user: CurrentUser, session
         saved=saved,
         current=current,
         changes=changes,
+        savedRestrictions=list(item.restrictions or []),
+        restrictions=list(offer.restrictions),
         description=offer.description,
         bookable=reason is None,
         reason=reason,
@@ -415,4 +424,5 @@ def refresh_item(
     locked.revision = offer.revision
     locked.available = offer.available
     locked.valid_until = offer.validUntil
+    locked.restrictions = list(offer.restrictions)
     return _finish(session, trip_id)

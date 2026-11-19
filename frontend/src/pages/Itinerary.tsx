@@ -4,7 +4,7 @@ import { Link as RouterLink, useParams } from "react-router-dom";
 import { api, ApiError, type BookingAttempt, type Itinerary as ItineraryData, type ItineraryItem, type Trip } from "../api";
 import BookDialog from "../BookDialog";
 import ConflictDialog, { type PendingChange } from "../ConflictDialog";
-import { LIVE_ITEM_STATUSES, STATUS_LABELS, stamp } from "../format";
+import { LIVE_ITEM_STATUSES, STATUS_LABELS, restrictionsText, stamp } from "../format";
 import { useTripWorkspace } from "../tripContext";
 
 interface Notice {
@@ -168,6 +168,7 @@ export default function Itinerary() {
                     />
                   </Stack>
                   <Typography variant="body2" color="text.secondary">{item.description}</Typography>
+                  <Typography variant="body2">Restrictions: {restrictionsText(item.restrictions)}</Typography>
                   <Typography variant="body2">
                     {item.destination}
                     {item.origin ? ` (from ${item.origin})` : ""} · {stamp(item.startsAt)} → {stamp(item.endsAt)}

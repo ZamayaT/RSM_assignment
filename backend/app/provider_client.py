@@ -6,7 +6,7 @@ from typing import Literal
 from urllib.parse import quote
 
 import httpx
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from app.config import get_settings
 
@@ -36,6 +36,7 @@ class ProviderOffer(BaseModel):
     revision: str
     available: bool
     validUntil: datetime
+    restrictions: list[str] = Field(default_factory=list)  # optional in the contract: missing means none stated
 
 
 class SupplierWarning(BaseModel):

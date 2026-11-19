@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError, type BookingAttempt, type Quote } from "./api";
-import { newIntentId, stamp } from "./format";
+import { newIntentId, restrictionsText, stamp } from "./format";
 
 interface Props {
   tripId: string;
@@ -112,6 +112,11 @@ export default function BookDialog({ tripId, item, onClose, onBooked }: Props) {
                   <TableCell>Quote revision</TableCell>
                   <TableCell>{quote.saved.revision}</TableCell>
                   <TableCell sx={mark(changed("revision"))}>{quote.current.revision}{tag(changed("revision"))}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Restrictions</TableCell>
+                  <TableCell>{restrictionsText(quote.savedRestrictions)}</TableCell>
+                  <TableCell sx={mark(changed("restrictions"))}>{restrictionsText(quote.restrictions)}{tag(changed("restrictions"))}</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>Quote valid until</TableCell>

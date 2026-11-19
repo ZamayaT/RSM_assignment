@@ -62,7 +62,7 @@ Not part of `/v1`. The application must not depend on it.
 | `PUT /control/suppliers/{id}/failure` | `{"mode":"unavailable"\|"timeout"\|"rate_limited","retryAfterSeconds":2}` (`retryAfterSeconds` only matters for `rate_limited`) |
 | `DELETE /control/suppliers/{id}/failure` | Remove the failure |
 | `PUT /control/suppliers/{id}/latency` | `{"milliseconds":3000}` delays every request involving that supplier; `0` removes it (max 60000) |
-| `POST /control/offers/{offerId}` | `{"price":"199.90"}` and/or `{"available":false}`; a real change creates a new revision |
+| `POST /control/offers/{offerId}` | `{"price":"199.90"}`, `{"available":false}` and/or `{"restrictions":["Minimum age 18"]}`; a real change creates a new revision |
 | `PUT /control/booking-outcomes` | `{"outcome":"confirmed"\|"failed"\|"pending","count":1}` queues the outcome of the next accepted bookings (empty queue means `confirmed`) |
 | `DELETE /control/booking-outcomes` | Clear the queue |
 | `POST /control/bookings/{id}/resolve` | `{"outcome":"confirmed"\|"failed"}` forces a pending booking to a terminal outcome |
@@ -213,5 +213,5 @@ curl -s -X POST $M/v1/bookings -H "$T" -H "$J" -H "Idempotency-Key: k-1" -d "$BO
 | Idempotency key retention | Kept forever (the contract asks for at least seven days). |
 | Search window | An offer matches when its whole span lies inside the window, using destination-local calendar days. |
 | Refreshed quote lifetime | One hour of mock-clock time. |
-| Optional `restrictions` on offers | Omitted. |
+| Optional `restrictions` on offers | Returned on every offer (also the offer copied into a booking), always as a list. Each fixture offer follows a fixed rule by category and id (see `RESTRICTIONS` in `app/fixtures.py`), and some offers state none (an empty list). A control change of the restrictions creates a new revision. |
 | `/control` authentication | None; it is for local demonstration only. |
