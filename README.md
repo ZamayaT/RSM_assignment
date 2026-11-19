@@ -1,23 +1,17 @@
 # Travel Planning Platform
 
-Group trip planning with provider search, simulated bookings, PDF trip documents, and a read-only AI assistant using MCP.
+Group trip planning with provider search, simulated bookings, PDF trip documents, and a read-only AI assistant using MCP. Everything runs in Docker; you only need Git and Docker Desktop.
 
-> This README documents only what is implemented. Design and guarantees: [`docs/architecture.md`](docs/architecture.md). A guided demo: [`docs/demo.md`](docs/demo.md). How AI was used and checked: [`docs/ai-usage.md`](docs/ai-usage.md).
+## Run it
 
-Everything runs in **Docker**: Python, Node, PostgreSQL and all packages are installed inside containers. On your machine you only need Git and Docker Desktop.
+### 1. Requirements
 
-## 1. Requirements
+| Program | Download |
+|---|---|
+| Git | https://git-scm.com/downloads |
+| Docker Desktop (includes Docker Compose; on Windows it needs WSL 2) | https://www.docker.com/products/docker-desktop/ |
 
-| Program | Purpose | Download |
-|---|---|---|
-| Git | Clone the repository | https://git-scm.com/downloads |
-| Docker Desktop (includes Docker Compose) | Build and run all services | https://www.docker.com/products/docker-desktop/ |
-
-On Windows, Docker Desktop requires WSL 2. The installer offers to enable it; accept and restart if asked.
-
-## 2. Check the installation
-
-Open a terminal (PowerShell, Git Bash, or a macOS/Linux terminal) and run:
+Check them (each prints a version), and start Docker Desktop:
 
 ```bash
 git --version
@@ -25,270 +19,102 @@ docker --version
 docker compose version
 ```
 
-Each command should print a version. Open Docker Desktop and wait until it is running before continuing.
-
-## 3. Clone the repository
+### 2. Get the code and the configuration
 
 ```bash
 git clone https://github.com/ZamayaT/RSM_assignment.git
 cd RSM_assignment
-```
-
-## 4. Create the configuration file
-
-Copy the example configuration. The defaults work for a local run; edit `.env` only if a port is already in use.
-
-```bash
 cp .env.example .env
 ```
 
-## 5. Build and start everything
+The defaults work locally; edit `.env` only if a port is in use or to enable the assistant (step 5).
 
-The first run downloads images and installs packages; it can take several minutes.
-
-```bash
-docker compose up --build
-```
-
-Leave this terminal open; it shows the logs of all services. Press `Ctrl+C` to stop.
-
-To run in the background instead:
+### 3. Start
 
 ```bash
 docker compose up --build -d
 ```
 
-## 6. Open the application
+The first run takes several minutes. Migrations, test users and the mock's offers are created automatically.
+
+### 4. Open
 
 | Service | URL |
 |---|---|
 | Web application | http://localhost:5173 |
-| Backend API documentation | http://localhost:8000/docs |
-| Provider mock API documentation | http://localhost:4010/docs |
+| Backend API docs | http://localhost:8000/docs |
+| Provider mock API docs | http://localhost:4010/docs |
 
-The start page lists the seeded test users (`alice`, `bob`, `carol`, `daniela`). The backend creates the ones that are missing on startup (so a database made earlier gets `daniela` too), and applies its migrations automatically when its container starts.
+Log in by clicking a test user (`alice`, `bob`, `carol`, `daniela`; no passwords).
 
-To log in, click a name. From there you can create a trip (name, destinations Lisbon/Paris/Rome, dates, travelers, budget in USD, notes), see it under **My trips**, open it, and edit it (**Edit Trip**). An open trip shows its general information on the left and its sections as tabs on the right (**Itinerary**, **Budget**, **Bookings**, **Documents**, **Search**, **Participants**, **Assistant**); each tab has its own URL, so a reload keeps the tab. Click the **Travel Planning Platform** title in the top bar to sign out and log in as someone else: each user sees only their own trips. If two people edit the same trip, the second save is refused with a "changed by someone else" message and nothing is overwritten; click **Reload latest** to continue from the newest version. Your login is kept in the browser, so reloading a trip page keeps you signed in; the start page (`http://localhost:5173/`) always shows the user list, and choosing a user there replaces the current session.
+### 5. Enable the assistant (optional)
 
-To share a trip, open it and go to the **Participants** tab. As the organizer, type a username (suggestions appear as you type), choose **editor** or **viewer**, and click **Add**. You can also change a participant's role or remove them. To try the roles, add `bob` as viewer and `carol` as editor, then click the top-bar title to switch user: a viewer can read the trip but not edit it, an editor can edit the trip but sees the participants read-only, and a user who is not on the trip (for example `daniela`, or someone who was removed) does not see it. The backend enforces these rules, not only the screens.
-
-To search, open a trip and go to the **Search** tab. Choose a category (transport, accommodation, activity), one of the trip's destinations (transport also asks for an origin), adjust the dates, travelers or supplier if you like, and click **Search**. The results table can be sorted by price, start time or supplier. Results are estimates from the provider mock, not bookings: prices are not guaranteed, and each offer shows when it was searched and until when the quote is valid. Anyone on the trip, including viewers, can search. The mock offers transport, stays and activities (including museum and food places tours) from the day after today until 31 January 2027, from three suppliers shown as Supplier Alamo, Supplier Boots and Supplier Croc; a trip with dates outside that window gets an empty search.
-
-To try a partial or failed search, run these in a terminal while the services are running, then search accommodation again in the browser:
-
-```bash
-# one supplier down: the page shows the other suppliers' results and a warning for Supplier Boots
-curl -s -X PUT http://localhost:4010/control/suppliers/supplier-boots/failure -H "Content-Type: application/json" -d '{"mode":"unavailable"}'
-
-# all accommodation suppliers down: the page shows "The search failed" with a "Try again" button
-curl -s -X PUT http://localhost:4010/control/suppliers/supplier-alamo/failure -H "Content-Type: application/json" -d '{"mode":"unavailable"}'
-curl -s -X PUT http://localhost:4010/control/suppliers/supplier-croc/failure -H "Content-Type: application/json" -d '{"mode":"unavailable"}'
-
-# back to normal
-curl -s -X POST http://localhost:4010/control/reset
-```
-
-The backend waits at most `PROVIDER_TIMEOUT_SECONDS` (default 5, set in `.env`) for the provider.
-
-To build an itinerary, click **Add to itinerary** on a search result (organizers and editors; viewers can only look). Open the **Itinerary** tab to see the items in order with schedule, cost, an "Estimate" or "Expired quote" label and warnings. Use **Up**/**Down** to arrange items and **Remove** to delete one. New items are placed by start time; the saved order is what everyone sees. The **Budget** tab lists the costs and compares the total with the trip budget (remaining or over budget).
-
-- **What is stored**: adding an item saves a copy of the offer as the provider returned it at that moment. If the provider's price changes later, the itinerary and budget keep the saved estimate.
-- **Warnings** (simplified rules): two items conflict when their time ranges overlap, comparing UTC instants (an end equal to the next start is fine). A stay may overlap activities and transport, but two overlapping stays conflict. Also flagged: missing schedule or price, an expired quote, an item outside the trip dates, and a destination that is not on the trip. Travel time and opening hours are not checked. "Expired" uses the backend's clock, so it can differ from the provider mock's clock if you shifted that.
-- **Budget rounding**: an item's cost is the offer's total price for the party (not multiplied by travelers). Totals are exact sums to the cent; any result with more decimals would be rounded half-up to the cent. Items without a price are left out. Every cost is an estimate until the item is booked; a confirmed booking counts as a confirmed cost at the price the provider accepted.
-
-### Restrictions
-
-Each offer lists the **restrictions** its supplier states (for example "Non-refundable simulated booking" or "Minimum age 18"); "None stated by the provider" means the supplier sent none. The itinerary keeps the restrictions saved with each item (**Refresh price** updates them), the booking dialog shows the current ones and highlights a change next to the saved ones, and documents include them. To see a change in the dialog, replace an item's restrictions in the mock and open **Book** on it (replace `OFFER_ID`):
-
-```bash
-curl -s -X POST http://localhost:4010/control/offers/OFFER_ID -H "Content-Type: application/json" -d '{"restrictions":["Minimum age 21"]}'
-```
-
-### Bookings
-
-To book an item, open the **Itinerary** tab and click **Book** (organizers and editors; viewers can only look). A dialog shows the provider's current terms (price, availability, quote revision and validity) next to the estimate saved in the itinerary, and highlights what changed. Nothing is booked until you click **Confirm booking**, and it books exactly the terms shown. A sold-out or expired offer cannot be confirmed; use **Refresh price** on the item to replace its saved estimate with the current terms.
-
-Each item then shows its status: *Estimate*, *Expired quote*, *Booking pending*, *Confirmed*, *Failed* or *Unknown outcome*. Open the **Bookings** tab to see every attempt with its status, price (the accepted price once the provider accepted it) and times. The page updates by itself while a booking can still change, including after a reload. A booked item cannot be removed or re-priced.
-
-- **No duplicates**: clicking **Confirm booking** twice, retrying after a lost answer, or repeating the request books once. Each decision has its own identifier, and the attempt is saved before the provider is called.
-- **Unknown is not failed**: if the provider does not answer in time (or answers with an error that proves nothing), the attempt is **Unknown**. It is never shown as failed or confirmed. The `worker` service asks the provider what happened (by the booking reference), sends the same booking again only if the provider has no record of it, and shows the real status. If the provider stays unreachable for about 10 minutes the page says **Outcome unresolved**; click **Check again** later. Check again only looks the booking up; it never books again.
-- **Failed**: when the provider refuses (the price or terms changed, or the offer is sold out), nothing is booked and the reason is shown. Click **Retry** (fresh terms, a new decision) or **Choose another offer**.
-- **Mixed results**: confirmed items stay booked and visible while others fail or wait; the Bookings page explains the next step for each.
-- **Budget**: confirmed bookings count as confirmed costs at the accepted price, which later provider price changes never alter. Pending and unknown items still count as estimates.
-
-The `worker` service starts with the rest (`docker compose up --build`) and uses the same image as the backend. Its timings (how soon an unknown outcome is checked, how often a pending booking is read, when it is called unresolved) are the `BOOKING_*` values in `.env.example`; the defaults are fine.
-
-To try the difficult cases, run these while the services are running, then book an item in the browser (replace `OFFER_ID` with the item's offer id, shown by the search results or the itinerary API at http://localhost:8000/docs, and `supplier-alamo` with its supplier):
-
-```bash
-M=http://localhost:4010; J="Content-Type: application/json"
-
-# a price change before you confirm: the dialog highlights the new price
-curl -s -X POST $M/control/offers/OFFER_ID -H "$J" -d '{"price":"150.00"}'
-
-# a sold-out offer: the dialog refuses to confirm
-curl -s -X POST $M/control/offers/OFFER_ID -H "$J" -d '{"available":false}'
-
-# the next booking is accepted but stays pending (the Bookings page updates when it resolves, after about 30 s)
-curl -s -X PUT $M/control/booking-outcomes -H "$J" -d '{"outcome":"pending","count":1}'
-
-# the next booking is accepted and then fails
-curl -s -X PUT $M/control/booking-outcomes -H "$J" -d '{"outcome":"failed","count":1}'
-
-# a lost response: the provider answers after the backend gave up, so the booking shows Unknown, then settles by itself
-curl -s -X PUT $M/control/suppliers/supplier-alamo/latency -H "$J" -d '{"milliseconds":8000}'
-# ...click Confirm booking, wait for "Unknown", then remove the delay:
-curl -s -X PUT $M/control/suppliers/supplier-alamo/latency -H "$J" -d '{"milliseconds":0}'
-
-# back to normal
-curl -s -X POST $M/control/reset
-```
-
-To see an edit conflict, log in as `alice` in one browser window and as `carol` in a private window. As `alice`, create a trip and share it with `carol` as editor. Open the **Itinerary** tab of that trip in both windows, then change it in one window (for example, remove an item) and change it in the other without reloading. The second save is refused with a dialog that says someone else saved first, shows the latest itinerary next to your change, and lets you **Re-apply** it or **Discard** it. Nothing saved is overwritten. A trip edit and an itinerary change share one version, so they can conflict with each other too.
-
-### Documents
-
-Open the **Documents** tab (after Bookings) and click **Generate document** (organizers and editors; viewers can look at the history and download). The page answers at once with a *Waiting* row; the `worker` service builds the PDF in the background, and the row becomes *In progress* and then *Complete* by itself, also after a reload or for another participant. **Download** saves the PDF. It shows the itinerary, the costs (estimated, confirmed, total and remaining) and the booking statuses, headed by "Generated at <time> by <user> from trip version N".
-
-- **A snapshot**: the document holds the trip as it was when you clicked, so later edits, price changes or bookings never change it. Documents from an older trip version say "The trip has changed since this document". To see newer data, generate a new one.
-- **One at a time**: while a document is waiting or in progress, clicking again (or another editor clicking) shows the same document instead of starting a second one.
-- **Never shown as ready by mistake**: a document is *Complete* only after its file is stored. If the file is later deleted or altered, **Download** refuses it with an explanation (the file's checksum is verified), the document becomes *Failed*, and **Retry** builds it again from the same snapshot. A failed generation also has a **Retry** button.
-- **Interrupted work**: if the worker stops while building a document, it is picked up again after about 2 minutes (`DOCUMENT_STUCK_SECONDS`), and fails with an explanation after 3 attempts (`DOCUMENT_MAX_ATTEMPTS`). Both are in `.env.example`.
-- **Storage**: PDFs are kept in the `documents_data` Docker volume, shared by `backend` and `worker`. `docker compose down` keeps them; `docker compose down -v` deletes them together with the database.
-
-Limits: only PDF; every generated document is kept and there is no way to delete one (the volume grows); the PDF uses a built-in font, so characters outside Western European text (for example Japanese) appear as `?`.
-
-To try the difficult cases while the services are running (generate a document in the browser each time):
-
-```bash
-# a failed generation: send the worker to a folder it cannot create, generate (it shows Failed with a message), then undo it and click Retry
-echo "DOCUMENTS_DIR=/proc/documents" >> .env && docker compose up -d --no-deps worker
-sed -i '/^DOCUMENTS_DIR=/d' .env && docker compose up -d --no-deps worker
-
-# a stuck job: stop the worker, generate (it stays Waiting), pretend it died while working, then start it again (it recovers and completes)
-docker compose stop worker
-docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "UPDATE documents SET status='"'"'in_progress'"'"', attempts = 1, started_at = now() - interval '"'"'5 minutes'"'"' WHERE status = '"'"'waiting'"'"'"'
-docker compose start worker
-
-# a corrupted file: alter every stored PDF, then click Download (refused, the document becomes Failed), then Retry
-docker compose exec backend sh -c 'for f in /data/documents/*.pdf; do echo x >> "$f"; done'
-
-# a lost file: delete them instead (the history shows Failed after the next refresh)
-docker compose exec backend sh -c 'rm -f /data/documents/*.pdf'
-```
-
-The API endpoints are listed and can be tried at http://localhost:8000/docs.
-
-### Assistant
-
-The **Assistant** tab (last tab of a trip) answers travel questions in plain language, using a real language model that calls **read-only tools** (trip, itinerary, budget, bookings, and a search of the provider's current offers) as the logged-in user. Under each answer, **Tools used** (shown by default; set `VITE_SHOW_ASSISTANT_TOOLS=false` in `.env` and run `docker compose up -d frontend` to hide it) lists every tool with its arguments and result or error, so a recommendation can be checked; a partial or empty search is shown as such. Every participant (organizer, editor, viewer) can use it. It never changes anything and cannot book: no such tool exists, and if you ask, it explains what to do yourself from the Itinerary tab. The chat lives in the open tab. Only your last question and answer (with its tools list) are kept in your browser's session storage, per user and trip, so you can check the Search tab and come back to the suggestion; they are shown again as "last question and answer", are never sent to the model as context, and disappear when you sign out or close the browser tab. Nothing is saved on the server.
-
-The assistant is optional and off until you give it a model. It speaks the OpenAI-compatible chat API, so any provider works; a free OpenRouter model is the documented example:
-
-1. Create a free key at https://openrouter.ai/keys.
-2. In your `.env` (copied from `.env.example` in step 4), uncomment and fill `LLM_API_KEY`; `LLM_BASE_URL` and `LLM_MODEL` already default to OpenRouter and a free model. Other variables: `LLM_TIMEOUT_SECONDS` (per model call, default 60), `ASSISTANT_MAX_STEPS` (model calls per question, default 6) and `MCP_URL`. The key is a secret: keep it only in `.env`.
-3. Restart the backend and check the model answers and uses tools (the probe never prints the key; the first command lists the free models that support tools):
+The assistant needs a model behind an OpenAI-compatible API. With a free OpenRouter key (https://openrouter.ai/keys), uncomment `LLM_API_KEY=` in `.env` and paste the key (the base URL and a free model are already the defaults), then:
 
 ```bash
 docker compose up -d backend
-docker compose exec backend python -m app.assistant.probe --list-free
 docker compose exec backend python -m app.assistant.probe
 ```
 
-Without a key the tab says what to set. A provider limit (free models allow only about 50 requests a day), a timeout or a bad key also show a clear message. Each question uses about 2 to 4 model calls.
+The probe checks that the model answers and uses tools (it never prints the key). Without a key the Assistant tab says what to set; everything else works.
 
-**Data sent to the model provider.** The tool results (trip, itinerary, budget, bookings and offers) are sent to the configured provider, which on free tiers may keep or use them. The application only holds test data; do not enter real personal data.
+### 6. Tests and checks
 
-**Inspect the MCP tools.** The tools are served by the backend at `http://localhost:8000/mcp` (standard MCP over HTTP; read-only; the same bearer token as the REST API). Copy-paste commands (Git Bash or any shell with `curl` and `python`):
-
-```bash
-TOKEN=$(curl -s -X POST localhost:8000/auth/login -H 'Content-Type: application/json' -d '{"username":"alice"}' | python -c "import sys,json;print(json.load(sys.stdin)['token'])")
-curl -s -X POST localhost:8000/mcp -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
-```
-
-The list is `get_trip`, `get_itinerary`, `get_budget`, `get_bookings` and `search_options`. `search_options` returns at most 20 offers (available first, then cheapest) and says how many matched (`offersTotal`) and, when some were left out, a `note`; the Search tab always shows them all. To call one, replace the body with `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_trip","arguments":{"trip_id":"<TRIP_ID>"}}}` (the trip id is in the trip's URL). Without a token the answer is `401`; a trip you do not belong to answers "Trip not found." as a tool error.
-
-**Evaluations.** Two commands, kept apart:
-
-```bash
-docker compose exec backend python -m evals.search
-docker compose exec backend python -m evals.assistant
-```
-
-- `evals.search` is deterministic: it needs the running provider mock and no model or key, costs nothing, and prints pass/fail per case (filters, known offers, party-size quotes, a supplier failure giving a partial result, an impossible query, offers in every month of the catalogue, museum and food tours). It exits with an error if a case fails.
-- `evals.assistant` needs the model: it asks the running application a handful of questions on temporary "[eval] ..." trips (cheapest within budget, nothing suitable, provider down, one supplier down, a request to book, and more) and checks rules, not opinions: only read-only tools used, expected tools called, every amount cited comes from a tool result, failures and empty results admitted, no booking claimed and nothing changed. It prints a table and writes a JSON report to `backend/evals/results/`. Add `--runs 3` to repeat each scenario, `--only a,b` to pick some, `--list` to see them. Cost: about 2 to 3 model calls per scenario; free on a free model (a full run is a few dozen requests, within a day's allowance), otherwise a few thousand tokens per call at your provider's price. Free models are inconsistent, so a failure is reported as it is: the pass rate is the result.
-
-**Limits.** Conversations are not saved on the server (only the last exchange is kept in your browser session); no streaming, voice or attachments; one trip per chat; only the tools above exist; the answer quality depends on the model you configure.
-
-## 7. Run the tests
-
-With the services running (in another terminal):
+With the services running:
 
 ```bash
 docker compose exec backend pytest
 docker compose exec mock_provider pytest
-```
-
-The itinerary and booking tests (outcomes, idempotency, recovery by the worker, permissions and concurrency) also call the real mock, so the `backend` and `mock_provider` services must be running; after a `docker compose down` they are not, so start them again first. The booking tests run the worker's steps directly, with the waiting intervals set to zero, so they do not depend on the `worker` service or on waiting. The document tests (generation, snapshots, recovery after a stuck worker, lost or altered files, permissions) run the worker steps directly and write to a temporary folder, so they need no waiting and do not touch your stored documents. The search tests call the real provider mock over HTTP, so the `mock_provider` service must be running; they reset the mock before and after each test, which also clears any failures you set by hand. The MCP tests (tool list, authentication, permissions, tool results equal to the REST responses, search states) use the real provider mock. The assistant tests use a **scripted** model: they check our own code (tool execution, step limit, failures, the one-trip restriction, error codes, nothing written), never how well a real model answers; that is what `evals.assistant` is for. No test needs a key or calls a model. The backend tests create and use their own database (`<POSTGRES_DB>_test`, dropped and recreated on each run), so your trips and logins are never touched. All of them should pass; they cover login, validation, trips, visibility, versioning conflicts, concurrent saves and persistence across a restart. The backend run takes about 3 minutes, mostly because each test reloads the mock's catalogue.
-
-The provider mock stores its data in its own PostgreSQL schema (`mock_provider`) and applies its migrations automatically when its container starts. Its fixtures, demo tokens, clock, `/control` endpoints and copy-paste failure scenarios are documented in [`mock_provider/README.md`](mock_provider/README.md). On startup it also loads its fixture offers (Lisbon, Paris, Rome; about 3,000 offers from the day after today until 31 January 2027) if there are none. A mock database created before this catalogue keeps its old offers until you run `curl -s -X POST http://localhost:4010/control/reset` once.
-
-The mock's clock follows real time by default. To freeze it or shift it, uncomment `MOCK_CLOCK_FROZEN_AT` (for example `2030-01-15T09:00:00Z`) or `MOCK_CLOCK_OFFSET_SECONDS` in `.env`, then run `docker compose up -d mock_provider`. Fixture dates are generated relative to the clock when they are first loaded.
-
-### Quality checks
-
-```bash
 docker compose exec backend ruff check .
 docker compose exec mock_provider ruff check .
 docker compose exec frontend npm run typecheck
+docker compose exec backend python -m evals.search
 ```
 
-The first two lint the Python code (ruff: the default rules plus import order, configured in each service's `ruff.toml`); the third type-checks the frontend. All three should report no problems.
+All should pass. The backend tests use their own database (`<POSTGRES_DB>_test`), reset the mock around each test, take about 3 minutes and never call a model. The model-dependent evaluation, `python -m evals.assistant`, needs the key (see below).
 
-## 8. Stop and reset
-
-Stop the services (data is kept):
+### 7. Stop
 
 ```bash
-docker compose down
+docker compose down      # keeps the data
+docker compose down -v   # deletes the database and the generated documents
 ```
 
-Stop and **delete all data** (the database and the generated documents) to start from scratch:
+### Troubleshooting
 
-```bash
-docker compose down -v
-```
+- **Port in use**: change `FRONTEND_PORT`, `BACKEND_PORT` or `MOCK_PROVIDER_PORT` in `.env` (and `FRONTEND_ORIGIN` or `VITE_BACKEND_URL` to match), then `docker compose up --build -d`.
+- **Old mock data** (a mock database from before the current catalogue): `curl -s -X POST http://localhost:4010/control/reset`.
+- **Trace an error**: every error shown in the browser has a request id; `docker compose logs backend | grep req-...` shows everything that request did.
 
-## 9. Troubleshooting
+## What it does and how to try it
 
-- **Port already in use**: change the port variables (`FRONTEND_PORT`, `BACKEND_PORT`, `MOCK_PROVIDER_PORT`) in `.env`. If you change `FRONTEND_PORT`, also update `FRONTEND_ORIGIN`; if you change `BACKEND_PORT`, also update `VITE_BACKEND_URL`. Then run `docker compose up --build` again.
-- **Docker commands fail**: make sure Docker Desktop is running.
-- **Trace a failed operation**: errors shown in the browser include a request id (`req-...`). Every backend log line carries the id of the request it belongs to, so one search finds the access line (method, path, status, duration, user), the call to the provider with its own request id and status, and the traceback of an unexpected error (which is answered with `500 INTERNAL_ERROR` and the same id). Replace the id below with yours; the level is `LOG_LEVEL` in `.env` (default `INFO`):
+Short reference; a guided walkthrough with failure and concurrency scenarios is in [`docs/demo.md`](docs/demo.md), and the mock's data and failure switches in [`mock_provider/README.md`](mock_provider/README.md).
+
+- **Trips and roles**: create a trip (destinations Lisbon, Paris, Rome; dates; travelers; USD budget; notes) and share it from **Participants** as *editor* or *viewer*. Viewers only read; non-participants get nothing. The backend enforces it, not just the screens.
+- **Search**: transport, stays and activities (including museum and food places tours) from Supplier Alamo, Boots and Croc, from the day after today until 31 January 2027; a trip outside that window finds nothing. Results show price, schedule, availability, restrictions, search time and quote validity, and are labelled complete, partial (a supplier failed), empty or failed. Try a failure: `curl -s -X PUT http://localhost:4010/control/suppliers/supplier-boots/failure -H "Content-Type: application/json" -d '{"mode":"unavailable"}'` (undo with `curl -s -X POST http://localhost:4010/control/reset`).
+- **Itinerary and budget**: add results, reorder and remove items; warnings for overlaps (UTC instants; a stay may overlap other items, two stays may not), missing data, expired quotes, items outside the trip dates or destinations. Costs are the offer totals for the party, exact to the cent (half-up rounding); estimates and confirmed prices are kept apart.
+- **Concurrent edits**: one version per trip; a stale save is refused with a dialog to re-apply or discard, so nothing is overwritten.
+- **Bookings**: **Book** shows the current terms next to the saved estimate and books only what you confirm. Statuses: estimate, pending, confirmed, failed, unknown. A lost response becomes *Unknown* and the `worker` settles it with the provider (never booking twice); after about 10 minutes without an answer it shows **Outcome unresolved** with **Check again**. Timings: `BOOKING_*` in `.env.example`.
+- **Documents**: **Generate document** builds a PDF in the background (waiting, in progress, complete, failed), from a snapshot of the trip at that moment. Downloads verify the file's checksum; a failed or damaged one can be retried. PDFs live in the `documents_data` volume.
+- **Assistant**: the last tab answers travel questions with a real model that can only read (trip, itinerary, budget, bookings, search) as the logged-in user, and lists the tools it used (hide them with `VITE_SHOW_ASSISTANT_TOOLS=false`). It cannot book or change anything. Only the last question and answer are kept, in the browser session. Tool results are sent to the model provider: use test data only. Free models allow about 50 requests a day (2 to 4 per question).
+- **MCP**: the read-only tools are at `http://localhost:8000/mcp` (same bearer token as the API). `search_options` returns the 20 best offers and says how many matched. List them:
 
   ```bash
-  docker compose logs backend | grep req-0123456789abcdef
+  TOKEN=$(curl -s -X POST localhost:8000/auth/login -H 'Content-Type: application/json' -d '{"username":"alice"}' | python -c "import sys,json;print(json.load(sys.stdin)['token'])")
+  curl -s -X POST localhost:8000/mcp -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
   ```
 
-- **See the logs of one service**:
+- **Evaluations**: `evals.search` is deterministic and free. `docker compose exec backend python -m evals.assistant` asks the model a few scenarios (cheapest within budget, nothing suitable, provider down, a request to book, and more), checks the answers with rules, prints a pass rate and writes a JSON report to `backend/evals/results/`. It costs about 2 to 3 model calls per scenario (`--only a,b`, `--runs 3`, `--list`).
 
-  ```bash
-  docker compose logs -f backend
-  ```
+## Deployment proposal
 
-## Proposed deployment approach
+Not deployed; Compose is for local use (development servers). To deploy: run the same images on one container host behind an HTTPS reverse proxy, serve the frontend as static files (`npm run build`), keep the `worker` as a second container of the backend image, use a managed PostgreSQL with backups and a backed-up volume or object storage for PDFs, keep secrets (`POSTGRES_PASSWORD`, `PROVIDER_TOKEN`, `LLM_API_KEY`) in the host's secret store, and use `GET /health` and `GET /health/ready` as health checks. Real authentication and the real provider must replace the test users and the mock first.
 
-A proposal only; nothing here is deployed. The Compose file is for local use: it runs development servers (`npm run dev` for the frontend, `uvicorn` without workers for the backend) and keeps the database and the documents in local Docker volumes.
+## Documentation
 
-- **Hosting**: run the same images on one small container host (a VM with Docker Compose, or a managed container service). Serve the frontend as static files built with `npm run build` behind a reverse proxy with HTTPS, and route `/` to it and the API (including `/mcp`) to the backend. The `worker` runs as a second container of the backend image, one replica at least.
-- **Database**: a managed PostgreSQL with automated backups and point-in-time recovery instead of the local container; the backend applies its migrations on start. The generated PDFs live on a persistent volume or object storage that is also backed up (their checksums are kept in the database).
-- **Secrets and configuration**: all settings are environment variables (see `.env.example`); keep `POSTGRES_PASSWORD`, `PROVIDER_TOKEN` and `LLM_API_KEY` in the host's secret store, not in files, and set `FRONTEND_ORIGIN` and `VITE_BACKEND_URL` to the public URLs.
-- **What must change first**: the test-user login (no passwords) must be replaced by real authentication, and the provider mock by the real provider; the assistant's data is sent to the model provider, so choose one whose terms fit real data.
-- **Operation**: logs go to the container output with a request id per line (see Troubleshooting); `GET /health` (process alive) and `GET /health/ready` (database reachable, `503` otherwise) can serve as the health checks.
-
-## Project documentation
-
-- `assignment/`: original assignment (PRD, candidate guide, provider contract `openAPI.json`).
-- `docs/`: architecture note, demo walkthrough, AI usage and verification note.
-- `claude/PROJECT.md`: project summary, requirements, decisions, architecture, build plan.
-- `claude/CLAUDE.md`: AI development rules (development harness).
-- `claude/changes/`: one file per development step with its tasks.
+- [`docs/architecture.md`](docs/architecture.md): decisions, guarantees, evaluation areas, limitations.
+- [`docs/demo.md`](docs/demo.md): demo walkthrough and failure recipes.
+- [`docs/ai-usage.md`](docs/ai-usage.md): how AI was used and verified.
+- [`mock_provider/README.md`](mock_provider/README.md): the provider mock.
+- `claude/`: the AI development harness (`CLAUDE.md` rules, `PROJECT.md` summary, `changes/` steps).
+- `assignment/`: the original assignment, unchanged.

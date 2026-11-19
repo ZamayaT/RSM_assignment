@@ -7,9 +7,9 @@
 
 ## The harness (committed in `claude/`)
 
-- `claude/CLAUDE.md`: the rules the agent follows: plan a change and wait for approval, implement only the named task, tick it when done, keep `README.md` limited to what is implemented, never touch `assignment/`, no git commands that change state (the developer commits), small targeted edits, concise reports.
+- `claude/CLAUDE.md`: the rules the agent follows: plan a change and wait for approval, implement only the named task, tick it when done, keep `README.md` and `docs/` limited to what is implemented, never touch `assignment/`, no git commands that change state (the developer commits), small targeted edits, concise reports.
 - `claude/PROJECT.md`: requirements, decisions, architecture, testing strategy and the build plan.
-- `claude/changes/NN-*.md`: one file per development step with goal, scope, tasks as checkboxes, acceptance criteria and the technologies added. Each change was approved before any code was written.
+- `claude/changes/NN-*.md`: one file per development step with goal, scope, tasks as checkboxes, acceptance criteria and the technologies added. Changes 00 to 10 were planned in their files and approved before any code was written; later small requests (the assistant's tools toggle and last-answer memory, change 11's richer mock data) were implemented on the developer's direct request and recorded in the change files afterwards.
 
 Workflow: the developer defines a change, approves the plan, then says "Implement X" for a task or a whole change; the agent reads the change file, implements only that, runs the relevant checks, ticks the task and reports.
 
